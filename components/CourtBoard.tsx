@@ -965,10 +965,11 @@ useEffect(() => {
     c.startAt ? Math.max(0, Math.floor((now - c.startAt) / 1000)) : 0;
 
   const statusColor: Record<CourtStatus, string> = {
-    idle: "bg-slate-100 text-slate-500",
-    ready: "bg-emerald-100 text-emerald-700",
-    playing: "bg-lime-100 text-lime-700 animate-pulse",
-    done: "bg-sky-100 text-sky-700",
+    idle: "bg-slate-100 text-slate-500 dark:bg-slate-700/70 dark:text-slate-400",
+    ready: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+    playing:
+      "bg-lime-100 text-lime-700 animate-pulse dark:bg-lime-950 dark:text-lime-300",
+    done: "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300",
   };
 
   return (
@@ -991,7 +992,7 @@ useEffect(() => {
           <div className="space-y-4 lg:sticky lg:top-6">
             <section
               data-drop="bench"
-              className={`rounded-2xl bg-white p-5 border border-slate-100 shadow-[0_4px_20px_rgba(16,185,129,0.08)] transition-all ${
+              className={`rounded-2xl bg-white p-5 border border-slate-100 shadow-[0_4px_20px_rgba(16,185,129,0.08)] transition-all dark:bg-slate-800 dark:border-slate-700 ${
                 dragName &&
                 hoverDrop === "bench" &&
                 dragFrom?.status !== "playing"
@@ -1002,12 +1003,12 @@ useEffect(() => {
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="h-4 w-1.5 rounded-full bg-gradient-to-b from-emerald-500 to-teal-400" />
-                  <h2 className="font-semibold text-slate-700">
+                  <h2 className="font-semibold text-slate-700 dark:text-slate-200">
                     รายชื่อ ({app.members.length})
                   </h2>
                 </div>
                 {unArrivedCount > 0 && (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300">
                     {unArrivedCount} ยังไม่เช็ค
                   </span>
                 )}
@@ -1015,25 +1016,25 @@ useEffect(() => {
               <div className="mb-3 flex flex-wrap gap-1.5">
                 <button
                   onClick={checkAllPresence}
-                  className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-100"
+                  className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-950/70 dark:text-emerald-300 dark:hover:bg-emerald-900"
                 >
                   ✓ เช็คชื่อทุกคน
                 </button>
                 <button
                   onClick={clearRoster}
-                  className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-200"
+                  className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
                 >
                   เคลียร์รายชื่อ
                 </button>
                 <button
                   onClick={resetSession}
-                  className="rounded-full bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-100"
+                  className="rounded-full bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-100 dark:bg-rose-950/70 dark:text-rose-300 dark:hover:bg-rose-900"
                 >
                   เริ่มรอบใหม่
                 </button>
               </div>
               {unArrivedCount > 0 && (
-                <p className="mb-2 text-[11px] leading-relaxed text-amber-600">
+                <p className="mb-2 text-[11px] leading-relaxed text-amber-600 dark:text-amber-400">
                   คนที่ยังไม่เช็คชื่อจะไม่ถูกสุ่มลงเล่น — กด ✓ ที่ชื่อเมื่อมาถึง
                 </p>
               )}
@@ -1085,9 +1086,9 @@ useEffect(() => {
                           } ${
                             arrived
                               ? inCourtIdx >= 0
-                                ? "border-emerald-200 bg-emerald-50/70 hover:border-emerald-300"
-                                : "border-slate-100 bg-white hover:border-emerald-200"
-                              : "border-slate-100 bg-slate-50/60 hover:border-slate-200"
+                                ? "border-emerald-200 bg-emerald-50/70 hover:border-emerald-300 dark:border-emerald-800/70 dark:bg-emerald-950/40 dark:hover:border-emerald-700"
+                                : "border-slate-100 bg-white hover:border-emerald-200 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-emerald-700"
+                              : "border-slate-100 bg-slate-50/60 hover:border-slate-200 dark:border-slate-700/80 dark:bg-slate-800/50 dark:hover:border-slate-600"
                           }`}
                         >
                           <button
@@ -1099,7 +1100,7 @@ useEffect(() => {
                             className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition-all ${
                               arrived
                                 ? "border-emerald-500 bg-emerald-500 text-white"
-                                : "border-slate-300 bg-white text-slate-300 hover:border-emerald-400"
+                                : "border-slate-300 bg-white text-slate-300 hover:border-emerald-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500"
                             }`}
                           >
                             ✓
@@ -1109,38 +1110,38 @@ useEffect(() => {
                               className={`block truncate text-[15px] font-semibold ${
                                 arrived
                                   ? inCourtIdx >= 0
-                                    ? "text-emerald-800"
-                                    : "text-slate-700"
-                                  : "text-slate-400 line-through"
+                                ? "text-emerald-800 dark:text-emerald-300"
+                                : "text-slate-700 dark:text-slate-200"
+                              : "text-slate-400 line-through dark:text-slate-500"
                               }`}
                             >
                               {name}
                             </span>
                             <span className="mt-0.5 flex flex-wrap items-center gap-1">
                               {!arrived && (
-                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300">
                                   ยังไม่มา
                                 </span>
                               )}
                               {inCourtIdx >= 0 &&
                                 (active ? (
-                                  <span className="rounded-full bg-lime-100 px-2 py-0.5 text-[10px] font-medium text-lime-700">
+                                  <span className="rounded-full bg-lime-100 px-2 py-0.5 text-[10px] font-medium text-lime-700 dark:bg-lime-950 dark:text-lime-300">
                                     เล่นอยู่ · คอร์ด {inCourtIdx + 1}
                                   </span>
                                 ) : (
-                                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
                                     คอร์ด {inCourtIdx + 1}
                                   </span>
                                 ))}
                               {!active && longest && (
-                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300">
                                   รอนานสุด
                                 </span>
                               )}
                             </span>
                           </span>
-                          <span className="flex shrink-0 flex-col items-end gap-1 text-xs text-slate-500 tabular-nums">
-                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                          <span className="flex shrink-0 flex-col items-end gap-1 text-xs text-slate-500 tabular-nums dark:text-slate-400">
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                               {games} เกม
                             </span>
                             {active
@@ -1157,7 +1158,7 @@ useEffect(() => {
                               removeMember(name);
                             }}
                             aria-label={`ลบ ${name}`}
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs text-slate-400 transition-colors hover:bg-rose-100 hover:text-rose-600"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs text-slate-400 transition-colors hover:bg-rose-100 hover:text-rose-600 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-rose-950/70 dark:hover:text-rose-300"
                           >
                             ✕
                           </button>
@@ -1169,12 +1170,12 @@ useEffect(() => {
               })()}
             </section>
 
-            <section className="rounded-2xl bg-white p-5 border border-slate-100 shadow-[0_4px_20px_rgba(16,185,129,0.08)]">
+            <section className="rounded-2xl bg-white p-5 border border-slate-100 shadow-[0_4px_20px_rgba(16,185,129,0.08)] dark:bg-slate-800 dark:border-slate-700">
               <div className="mb-2 flex items-center gap-2">
                 <span className="h-4 w-1.5 rounded-full bg-gradient-to-b from-emerald-500 to-teal-400" />
-                <h2 className="font-semibold text-slate-700">เพิ่มชื่อ</h2>
+                <h2 className="font-semibold text-slate-700 dark:text-slate-200">เพิ่มชื่อ</h2>
               </div>
-              <p className="mb-2 text-[11px] text-slate-400">
+              <p className="mb-2 text-[11px] text-slate-400 dark:text-slate-500">
                 คนที่เพิ่มใหม่ยังไม่เช็คชื่อ — กด ✓ ในรายชื่อเมื่อมาถึงแล้ว
               </p>
               <div className="flex gap-2">
@@ -1183,7 +1184,7 @@ useEffect(() => {
                   onChange={(e) => setNewName(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && addMember()}
                   placeholder="ชื่อสมาชิก"
-                  className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
                 />
                 <button
                   onClick={addMember}
@@ -1197,24 +1198,24 @@ useEffect(() => {
         </aside>
 
         <section className="flex-1 space-y-4">
-          <div className="flex items-center justify-between rounded-2xl bg-white p-4 border border-slate-100 shadow-[0_4px_20px_rgba(16,185,129,0.08)]">
+              <div className="flex items-center justify-between rounded-2xl bg-white p-4 border border-slate-100 shadow-[0_4px_20px_rgba(16,185,129,0.08)] dark:bg-slate-800 dark:border-slate-700">
             <div className="flex items-center gap-2">
                 <span className="h-4 w-1.5 rounded-full bg-gradient-to-b from-emerald-500 to-teal-400" />
-                <h2 className="font-semibold text-slate-700">
-                  คอร์ด ({app.courts.length})
-                </h2>
+                  <h2 className="font-semibold text-slate-700 dark:text-slate-200">
+                    คอร์ด ({app.courts.length})
+                  </h2>
               </div>
             <div className="flex gap-2">
               <button
                 onClick={clearCourts}
-                className="rounded-lg bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-100"
+                className="rounded-lg bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-100 dark:bg-rose-950/70 dark:text-rose-300 dark:hover:bg-rose-900"
               >
                 เคลียร์คอร์ด
               </button>
               <button
                 onClick={removeCourt}
                 disabled={app.courts.length <= 1}
-                className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
               >
                 ลดคอร์ด
               </button>
@@ -1228,7 +1229,7 @@ useEffect(() => {
             </div>
           </div>
 
-          <p className="text-center text-xs text-slate-400">
+          <p className="text-center text-xs text-slate-400 dark:text-slate-500">
             กดชื่อค้างไว้แล้วลากไปวางบนชื่ออื่นเพื่อสลับตำแหน่ง (ข้ามคอร์ดหรือจากคนว่างก็ได้) — ลากไปที่โซน
             “คนที่ว่าง” เพื่อถอดออกจากคอร์ด
           </p>
@@ -1246,12 +1247,12 @@ useEffect(() => {
               textColor: string
             ) => {
               const cls = [
-                "rounded-xl bg-white px-3 py-2.5 text-center text-sm font-bold shadow-sm transition-all select-none",
+                "rounded-xl bg-white px-3 py-2.5 text-center text-sm font-bold shadow-sm transition-all select-none dark:bg-slate-800",
                 textColor,
               ];
               if (dragName && hoverDrop === dropKey && dragName !== name) {
                 cls.push(
-                  "cursor-grab -translate-y-0.5 scale-110 bg-emerald-50 shadow-lg ring-4 ring-emerald-500"
+                  "cursor-grab -translate-y-0.5 scale-110 bg-emerald-50 shadow-lg ring-4 ring-emerald-500 dark:bg-emerald-800"
                 );
               } else if (swapCourt === idx) {
                 cls.push(
@@ -1284,10 +1285,10 @@ useEffect(() => {
                   <span
                     key={dropKey}
                     data-drop={dropKey}
-                    className={`rounded-xl border-2 border-dashed bg-slate-50 px-3 py-2.5 text-center text-sm font-semibold transition-all ${
+                    className={`rounded-xl border-2 border-dashed bg-slate-50 px-3 py-2.5 text-center text-sm font-semibold transition-all dark:bg-slate-800/60 dark:border-slate-600 ${
                       isEmptyTarget
                         ? "-translate-y-0.5 scale-110 border-emerald-500 bg-emerald-50 text-emerald-600 shadow-lg"
-                        : "border-slate-300 text-slate-300"
+                        : "border-slate-300 text-slate-300 dark:border-slate-600 dark:text-slate-500"
                     }`}
                     style={{ touchAction: "none" }}
                   >
@@ -1334,7 +1335,7 @@ useEffect(() => {
             return (
               <div
                 key={idx}
-                className="rounded-2xl bg-white p-6 border border-slate-100 shadow-[0_4px_20px_rgba(16,185,129,0.08)]"
+                className="rounded-2xl bg-white p-6 border border-slate-100 shadow-[0_4px_20px_rgba(16,185,129,0.08)] dark:bg-slate-800 dark:border-slate-700"
               >
                 <div className="flex flex-col gap-4 lg:flex-row">
                 <div className="min-w-0 flex-1">
@@ -1343,7 +1344,7 @@ useEffect(() => {
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-sm font-bold text-white shadow-md shadow-emerald-600/25">
                       {idx + 1}
                     </span>
-                    <h3 className="text-lg font-bold text-slate-800">
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
                       คอร์ด {idx + 1}
                     </h3>
                   </div>
@@ -1367,16 +1368,16 @@ useEffect(() => {
                       กำลังสุ่มคู่...
                     </p>
                     <div className="flex items-stretch gap-3">
-                      <div className="flex flex-1 flex-col gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3">
+                      <div className="flex flex-1 flex-col gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3 dark:border-emerald-800/60 dark:bg-emerald-950/40">
                         <span
                           key={`a0-${rollTick}`}
-                          className="animate-slot-in rounded-xl bg-white px-3 py-2.5 text-center text-sm font-bold text-emerald-800 shadow-sm"
+                          className="animate-slot-in rounded-xl bg-white px-3 py-2.5 text-center text-sm font-bold text-emerald-800 shadow-sm dark:bg-slate-800 dark:text-emerald-300"
                         >
                           {rollNames[idx]?.[0]}
                         </span>
                         <span
                           key={`a1-${rollTick}`}
-                          className="animate-slot-in rounded-xl bg-white px-3 py-2.5 text-center text-sm font-bold text-emerald-800 shadow-sm"
+                          className="animate-slot-in rounded-xl bg-white px-3 py-2.5 text-center text-sm font-bold text-emerald-800 shadow-sm dark:bg-slate-800 dark:text-emerald-300"
                         >
                           {rollNames[idx]?.[1]}
                         </span>
@@ -1386,16 +1387,16 @@ useEffect(() => {
                           VS
                         </span>
                       </div>
-                      <div className="flex flex-1 flex-col gap-2 rounded-2xl border border-sky-200 bg-sky-50/60 p-3">
+                      <div className="flex flex-1 flex-col gap-2 rounded-2xl border border-sky-200 bg-sky-50/60 p-3 dark:border-sky-800/60 dark:bg-sky-950/40">
                         <span
                           key={`b0-${rollTick}`}
-                          className="animate-slot-in rounded-xl bg-white px-3 py-2.5 text-center text-sm font-bold text-sky-800 shadow-sm"
+                          className="animate-slot-in rounded-xl bg-white px-3 py-2.5 text-center text-sm font-bold text-sky-800 shadow-sm dark:bg-slate-800 dark:text-sky-300"
                         >
                           {rollNames[idx]?.[2]}
                         </span>
                         <span
                           key={`b1-${rollTick}`}
-                          className="animate-slot-in rounded-xl bg-white px-3 py-2.5 text-center text-sm font-bold text-sky-800 shadow-sm"
+                          className="animate-slot-in rounded-xl bg-white px-3 py-2.5 text-center text-sm font-bold text-sky-800 shadow-sm dark:bg-slate-800 dark:text-sky-300"
                         >
                           {rollNames[idx]?.[3]}
                         </span>
@@ -1403,11 +1404,11 @@ useEffect(() => {
                     </div>
                   </div>
                 ) : court.status === "idle" ? (
-                  <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 px-4 py-8">
-                    <p className="text-sm font-medium text-slate-400">
+                  <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 px-4 py-8 dark:border-slate-700 dark:bg-slate-800/50">
+                    <p className="text-sm font-medium text-slate-400 dark:text-slate-500">
                       ยังไม่มีคู่ — ผู้เล่นว่าง {poolCount} คน
                     </p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-slate-400 dark:text-slate-500">
                       สุ่มคนที่ยังไม่ได้เล่นลงก่อน จากนั้นสุ่มตามจำนวนเกม (เกมน้อยได้ก่อน) และเลี่ยงคู่ซ้ำจากเกมล่าสุด
                     </p>
                     <button
@@ -1426,18 +1427,18 @@ useEffect(() => {
                 ) : (
                   <>
                     <div className="flex items-stretch gap-3">
-                      <div className="flex flex-1 flex-col gap-2 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100 p-3">
-                        {renderSlot("A", 0, "text-emerald-800")}
-                        {renderSlot("A", 1, "text-emerald-800")}
+                      <div className="flex flex-1 flex-col gap-2 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100 p-3 dark:border-emerald-800/60 dark:from-emerald-950/70 dark:to-emerald-900/40">
+                              {renderSlot("A", 0, "text-emerald-800 dark:text-emerald-300")}
+                        {renderSlot("A", 1, "text-emerald-800 dark:text-emerald-300")}
                       </div>
                       <div className="flex items-center">
                         <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-rose-600 text-sm font-extrabold text-white shadow-md shadow-rose-500/30">
                           VS
                         </span>
                       </div>
-                      <div className="flex flex-1 flex-col gap-2 rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50 to-sky-100 p-3">
-                        {renderSlot("B", 0, "text-sky-800")}
-                        {renderSlot("B", 1, "text-sky-800")}
+                      <div className="flex flex-1 flex-col gap-2 rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50 to-sky-100 p-3 dark:border-sky-800/60 dark:from-sky-950/70 dark:to-sky-900/40">
+                        {renderSlot("B", 0, "text-sky-800 dark:text-sky-300")}
+                        {renderSlot("B", 1, "text-sky-800 dark:text-sky-300")}
                       </div>
                     </div>
 
@@ -1467,7 +1468,7 @@ useEffect(() => {
                           </button>
                           <button
                             onClick={() => shuffleCourt(idx)}
-                            className="rounded-xl bg-slate-100 px-6 py-2.5 font-semibold text-slate-600 transition-colors hover:bg-slate-200"
+                                                  className="rounded-xl bg-slate-100 px-6 py-2.5 font-semibold text-slate-600 transition-colors hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
                           >
                             สุ่มใหม่
                           </button>
@@ -1496,7 +1497,7 @@ useEffect(() => {
                       )}
                       <button
                         onClick={() => setSwapCourt(idx)}
-                        className="rounded-xl bg-sky-100 px-6 py-2.5 font-semibold text-sky-700 transition-colors hover:bg-sky-200"
+                                                        className="rounded-xl bg-sky-100 px-6 py-2.5 font-semibold text-sky-700 transition-colors hover:bg-sky-200 dark:bg-sky-950/80 dark:text-sky-300 dark:hover:bg-sky-900"
                       >
                         เปลี่ยนคน
                       </button>
@@ -1505,14 +1506,14 @@ useEffect(() => {
                 )}
                 </div>
                 {swapCourt === idx && (
-                  <aside className="flex w-full shrink-0 flex-col rounded-2xl border border-sky-200 bg-sky-50/60 p-3 lg:w-52">
-                    <p className="text-center text-sm font-semibold text-sky-800">
+                  <aside className="flex w-full shrink-0 flex-col rounded-2xl border border-sky-200 bg-sky-50/60 p-3 lg:w-52 dark:border-sky-800/60 dark:bg-sky-950/40">
+                    <p className="text-center text-sm font-semibold text-sky-800 dark:text-sky-200">
                       {swapOut
                         ? `แทน "${swapOut}"`
                         : "กดชื่อคนที่ต้องการเปลี่ยน"}
                     </p>
                     {freePlayers.length === 0 ? (
-                      <p className="mt-2 text-center text-xs text-sky-600">
+                      <p className="mt-2 text-center text-xs text-sky-600 dark:text-sky-400">
                         ไม่มีคนว่างให้สลับ
                       </p>
                     ) : (
@@ -1528,10 +1529,10 @@ useEffect(() => {
                               }}
                               {...pressHandlers(n, null)}
                               style={{ touchAction: "none" }}
-                              className={`cursor-grab select-none rounded-lg bg-white px-3 py-2 text-sm font-semibold shadow-sm transition-all hover:bg-sky-50 ${
+                              className={`cursor-grab select-none rounded-lg bg-white px-3 py-2 text-sm font-semibold shadow-sm transition-all hover:bg-sky-50 dark:bg-slate-800 dark:hover:bg-slate-700 ${
                                 dragName === n
                                   ? "scale-105 opacity-60 ring-2 ring-rose-400"
-                                  : "text-sky-800 ring-1 ring-sky-200"
+                                  : "text-sky-800 ring-1 ring-sky-200 dark:text-sky-200 dark:ring-sky-700"
                               }`}
                             >
                               {n}
@@ -1540,7 +1541,7 @@ useEffect(() => {
                         </div>
                       </div>
                     )}
-                    <p className="mt-2 text-[11px] leading-relaxed text-sky-600">
+                    <p className="mt-2 text-[11px] leading-relaxed text-sky-600 dark:text-sky-400">
                       ลากชื่อจากรายการนี้ไปวางในคอร์ดได้เลย หรือกดชื่อคนในคอร์ดเพื่อสลับข้าง
                     </p>
                     <button
@@ -1548,7 +1549,7 @@ useEffect(() => {
                         setSwapCourt(null);
                         setSwapOut(null);
                       }}
-                      className="mt-2 rounded-full bg-slate-100 px-4 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200"
+                      className="mt-2 rounded-full bg-slate-100 px-4 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
                     >
                       ✕ ยกเลิก
                     </button>
@@ -1572,7 +1573,7 @@ useEffect(() => {
         </div>
       )}
 
-      <footer className="mt-8 text-center text-xs text-slate-400">
+      <footer className="mt-8 text-center text-xs text-slate-400 dark:text-slate-500">
         ก๊วน CS KhemKhang · KuanBad
       </footer>
     </main>

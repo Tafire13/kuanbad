@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 body {
   min-height: 100vh;
   background: linear-gradient(180deg, #ecfdf5 0%, #f8fafc 45%, #f0fdfa 100%);
@@ -8,9 +10,19 @@ body {
     "Noto Sans Thai", system-ui, sans-serif;
 }
 
+.dark body {
+  background: linear-gradient(180deg, #04251c 0%, #0f172a 45%, #04272d 100%);
+  color: #e2e8f0;
+}
+
 ::selection {
   background: #a7f3d0;
   color: #065f46;
+}
+
+.dark ::selection {
+  background: #065f46;
+  color: #d1fae5;
 }
 
 @keyframes slot-in {
@@ -37,6 +49,10 @@ body {
 .sidebar-scroll::-webkit-scrollbar-thumb {
   background: #a7f3d0;
   border-radius: 9999px;
+}
+
+.dark .sidebar-scroll::-webkit-scrollbar-thumb {
+  background: #134e4a;
 }
 
 .sidebar-scroll::-webkit-scrollbar-track {
