@@ -1314,6 +1314,8 @@ useEffect(() => {
                 key={idx}
                 className="rounded-2xl bg-white p-6 border border-slate-100 shadow-[0_4px_20px_rgba(16,185,129,0.08)]"
               >
+                <div className="flex flex-col gap-4 lg:flex-row">
+                <div className="min-w-0 flex-1">
                 <div className="mb-4 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-sm font-bold text-white shadow-md shadow-emerald-600/25">
@@ -1431,86 +1433,6 @@ useEffect(() => {
                       </div>
                     )}
 
-                    {swapCourt === idx ? (
-                      <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50/60 p-4 text-center">
-                        <p className="text-sm font-semibold text-sky-800">
-                          {swapOut
-                            ? `เลือกคนใหม่แทน "${swapOut}"`
-                            : "กดชื่อคนที่ต้องการเปลี่ยน"}
-                        </p>
-                        {freePlayers.length === 0 ? (
-                          <p className="mt-2 text-xs text-sky-600">
-                            ไม่มีคนว่างให้สลับ
-                          </p>
-                        ) : (
-                          <div className="mt-3 flex items-stretch gap-3">
-                            <div className="grid flex-1 content-start grid-cols-2 gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3">
-                              {freePlayers
-                                .slice(0, Math.ceil(freePlayers.length / 2))
-                                .map((n) => (
-                                  <button
-                                    key={n}
-                                    onClick={() => {
-                                      if (suppressClickRef.current) return;
-                                      if (!swapOut) return;
-                                      doSwap(idx, swapOut, n);
-                                    }}
-                                    {...pressHandlers(n, null)}
-                                    style={{ touchAction: "none" }}
-                                    className={`cursor-grab select-none rounded-xl bg-white px-3 py-2.5 text-sm font-bold shadow-sm transition-all hover:-translate-y-0.5 hover:bg-emerald-50 ${
-                                      dragName === n
-                                        ? "scale-110 opacity-60 ring-2 ring-rose-400"
-                                        : "text-emerald-800 ring-1 ring-emerald-200"
-                                    }`}
-                                  >
-                                    {n}
-                                  </button>
-                                ))}
-                            </div>
-                            <div className="flex items-center">
-                              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-rose-600 text-sm font-extrabold text-white shadow-md shadow-rose-500/30">
-                                VS
-                              </span>
-                            </div>
-                            <div className="grid flex-1 content-start grid-cols-2 gap-2 rounded-2xl border border-sky-200 bg-sky-50/60 p-3">
-                              {freePlayers
-                                .slice(Math.ceil(freePlayers.length / 2))
-                                .map((n) => (
-                                  <button
-                                    key={n}
-                                    onClick={() => {
-                                      if (suppressClickRef.current) return;
-                                      if (!swapOut) return;
-                                      doSwap(idx, swapOut, n);
-                                    }}
-                                    {...pressHandlers(n, null)}
-                                    style={{ touchAction: "none" }}
-                                    className={`cursor-grab select-none rounded-xl bg-white px-3 py-2.5 text-sm font-bold shadow-sm transition-all hover:-translate-y-0.5 hover:bg-sky-50 ${
-                                      dragName === n
-                                        ? "scale-110 opacity-60 ring-2 ring-rose-400"
-                                        : "text-sky-800 ring-1 ring-sky-200"
-                                    }`}
-                                  >
-                                    {n}
-                                  </button>
-                                ))}
-                            </div>
-                          </div>
-                        )}
-                        <p className="mt-2 text-xs text-sky-600">
-                          กดชื่ออีกฝั่งในคอร์ดเพื่อสลับข้าง (แยกคู่เดิม) — หรือลากชื่อด้านบนไปวางทับชื่อในคอร์ดเพื่อเปลี่ยนเลย
-                        </p>
-                        <button
-                          onClick={() => {
-                            setSwapCourt(null);
-                            setSwapOut(null);
-                          }}
-                          className="mt-3 rounded-full bg-slate-100 px-4 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200"
-                        >
-                          ยกเลิก
-                        </button>
-                      </div>
-                    ) : (
                     <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
                       {court.status === "ready" && (
                         <>
@@ -1557,9 +1479,60 @@ useEffect(() => {
                         เปลี่ยนคน
                       </button>
                     </div>
-                    )}
                   </>
                 )}
+                </div>
+                {swapCourt === idx && (
+                  <aside className="flex w-full shrink-0 flex-col rounded-2xl border border-sky-200 bg-sky-50/60 p-3 lg:w-52">
+                    <p className="text-center text-sm font-semibold text-sky-800">
+                      {swapOut
+                        ? `แทน "${swapOut}"`
+                        : "กดชื่อคนที่ต้องการเปลี่ยน"}
+                    </p>
+                    {freePlayers.length === 0 ? (
+                      <p className="mt-2 text-center text-xs text-sky-600">
+                        ไม่มีคนว่างให้สลับ
+                      </p>
+                    ) : (
+                      <div className="sidebar-scroll mt-2 max-h-72 flex-1 overflow-y-auto pr-1">
+                        <div className="flex flex-col gap-1.5">
+                          {freePlayers.map((n) => (
+                            <button
+                              key={n}
+                              onClick={() => {
+                                if (suppressClickRef.current) return;
+                                if (!swapOut) return;
+                                doSwap(idx, swapOut, n);
+                              }}
+                              {...pressHandlers(n, null)}
+                              style={{ touchAction: "none" }}
+                              className={`cursor-grab select-none rounded-lg bg-white px-3 py-2 text-sm font-semibold shadow-sm transition-all hover:bg-sky-50 ${
+                                dragName === n
+                                  ? "scale-105 opacity-60 ring-2 ring-rose-400"
+                                  : "text-sky-800 ring-1 ring-sky-200"
+                              }`}
+                            >
+                              {n}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <p className="mt-2 text-[11px] leading-relaxed text-sky-600">
+                      ลากชื่อจากรายการนี้ไปวางในคอร์ดได้เลย หรือกดชื่อคนในคอร์ดเพื่อสลับข้าง
+                    </p>
+                    <button
+                      onClick={() => {
+                        setSwapCourt(null);
+                        setSwapOut(null);
+                      }}
+                      className="mt-2 rounded-full bg-slate-100 px-4 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200"
+                    >
+                      ✕ ยกเลิก
+                    </button>
+                  </aside>
+                )}
+                </div>
               </div>
             );
           })}
