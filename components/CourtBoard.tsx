@@ -475,15 +475,20 @@ useEffect(() => {
     const waitingSince = st.waitingSince ?? {};
     const tNow = nowMs();
 
+    const zeroPool = pool.filter((n) => gamesOf(n) === 0);
+    const sourcePool = zeroPool.length >= 4 ? zeroPool : pool;
+
     const weightOf = (n: string) => {
-      const wGame = Math.pow(0.5, gamesOf(n) - minGames);
+      const diff = gamesOf(n) - minGames;
+      const wGame = diff === 0 ? 3 : diff === 1 ? 1.5 : 1;
       const wait = waitingSince[n];
-      const waitMin = wait ? Math.max(0, (tNow - wait) / 60000) : 0;
-      return wGame * (1 + Math.min(waitMin, 30) / 15);
+      const waitMin = wait ? Math.max(0, (tNow - wait) / 60000) : 3;
+      const wWait = 1 - 0.25 * Math.exp(-waitMin);
+      return wGame * wWait;
     };
 
     const sampleWeighted = (k: number): string[] => {
-      const left = [...pool];
+      const left = [...sourcePool];
       const out: string[] = [];
       while (out.length < k && left.length > 0) {
         let total = 0;
