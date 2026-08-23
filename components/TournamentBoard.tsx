@@ -7,19 +7,18 @@ const MAX_COURTS = 10;
 const POLL_MS = 1500;
 const STORAGE_KEY = "kuanbad-tournament";
 const STATE_URL = "/api/tstate";
-const DIFF_WEIGHTS = [4, 2.5, 1.2, 0.6, 0.3, 0.2];
 
 interface TCourt {
-  a: string[];
-  b: string[];
+  t1: number;
+  t2: number;
   status: "idle" | "ready" | "playing";
   startAt: number | null;
 }
 
 interface TGameRow {
   ts: number;
-  a: string[];
-  b: string[];
+  t1: number;
+  t2: number;
   sa: number;
   sb: number;
 }
@@ -28,14 +27,15 @@ interface TournamentState {
   members: string[];
   presence: Record<string, boolean>;
   scores: Record<string, number>;
+  teams: string[][];
   games: TGameRow[];
   courts: TCourt[];
   finishedAt: number | null;
 }
 
 const emptyCourt = (): TCourt => ({
-  a: [],
-  b: [],
+  t1: -1,
+  t2: -1,
   status: "idle",
   startAt: null,
 });
@@ -44,32 +44,38 @@ const defaultState = (): TournamentState => ({
   members: [],
   presence: {},
   scores: {},
+  teams: [],
   games: [],
   courts: Array.from({ length: 2 }, emptyCourt),
   finishedAt: null,
 });
 
-const pairKey = (x: string, y: string) => [x, y].sort().join("::");
+const nowMs = () => Date.now();
+const rand01 = () => Math.random();
+
+const pairwise = (st: TournamentState) =>
+  st.teams.length * (st.teams.length - 1) * 0.5;
+
+const matchupKey = (a: number, b: number) =>
+  a < b ? `${a}::${b}` : `${b}::${a}`;
+
+const playedMatchups = (st: TournamentState) => {
+  const s = new Set<string>();
+  st.games.forEach((g) => s.add(matchupKey(g.t1, g.t2)));
+  return s;
+};
 
 const isArrived = (st: TournamentState, n: string) =>
   st.presence?.[n] ?? true;
 
-const playedOf = (st: TournamentState, n: string) =>
-  st.games.filter((g) => g.a.includes(n) || g.b.includes(n)).length;
+const playerGames = (st: TournamentState, n: string) =>
+  st.games.filter(
+    (g) =>
+      st.teams[g.t1]?.includes(n) || st.teams[g.t2]?.includes(n)
+  ).length;
 
-const usedPairsOf = (games: TGameRow[]) => {
-  const s = new Set<string>();
-  games.forEach((g) => {
-    if (g.a.length === 2) s.add(pairKey(g.a[0], g.a[1]));
-    if (g.b.length === 2) s.add(pairKey(g.b[0], g.b[1]));
-  });
-  return s;
-};
-
-const pairCount = (n: number) => (n * (n - 1)) / 2;
-
-const nowMs = () => Date.now();
-const rand01 = () => Math.random();
+const teamGames = (st: TournamentState, t: number) =>
+  st.games.filter((g) => g.t1 === t || g.t2 === t).length;
 
 function normalizeState(st: TournamentState): TournamentState {
   return {
@@ -77,10 +83,16 @@ function normalizeState(st: TournamentState): TournamentState {
     members: st.members ?? [],
     presence: st.presence ?? {},
     scores: st.scores ?? {},
+    teams: Array.isArray(st.teams) ? st.teams.filter((t) => Array.isArray(t)) : [],
     games: st.games ?? [],
-    courts: Array.isArray(st.courts) && st.courts.length >= 1
-      ? st.courts
-      : Array.from({ length: 2 }, emptyCourt),
+    courts:
+      Array.isArray(st.courts) && st.courts.length >= 1
+        ? st.courts.map((c) =>
+            c && typeof c.t1 === "number" && typeof c.t2 === "number"
+              ? c
+              : emptyCourt()
+          )
+        : Array.from({ length: 2 }, emptyCourt),
     finishedAt: st.finishedAt ?? null,
   };
 }
@@ -110,8 +122,8 @@ function persistLocal(st: TournamentState) {
 
 export default function TournamentBoard() {
   const persisted = loadLocal();
-  const [app, setApp] = useState<TournamentState>(
-    normalizedInit(persisted)
+  const [app, setApp] = useState<TournamentState>(() =>
+    persisted ? normalizeState(persisted) : defaultState()
   );
   const [, setOnline] = useState(false);
   const [newName, setNewName] = useState("");
@@ -123,10 +135,6 @@ export default function TournamentBoard() {
   const pendingRef = useRef(false);
   const bootedRef = useRef(false);
   const pushChainRef = useRef<Promise<void>>(Promise.resolve());
-
-  function normalizedInit(p: TournamentState | null): TournamentState {
-    return p ? normalizeState(p) : defaultState();
-  }
 
   const setBoth = (st: TournamentState) => {
     appRef.current = st;
@@ -205,30 +213,27 @@ export default function TournamentBoard() {
     };
   }, []);
 
-  const usedPairs = useMemo(() => usedPairsOf(app.games), [app.games]);
   const arrivedMembers = app.members.filter((n) => isArrived(app, n));
-  const totalPairs = pairCount(arrivedMembers.length);
+  const unpaired = arrivedMembers.filter(
+    (n) => !app.teams.some((t) => t.includes(n))
+  );
+  const doneMatchups = playedMatchups(app);
+  const totalMatchups = pairwise(app);
   const progress =
-    totalPairs > 0 ? usedPairs.size / totalPairs : 0;
-  const done =
-    totalPairs > 0 && usedPairs.size >= totalPairs;
+    totalMatchups > 0 ? doneMatchups.size / totalMatchups : 0;
+  const finished =
+    totalMatchups > 0 && doneMatchups.size >= totalMatchups;
 
-  const rosterTotal = app.members.length;
-  const unlockedArrived = arrivedMembers.length;
-
-  const inCourtNames = useMemo(() => {
-    const s = new Set<string>();
-    app.courts.forEach((c, i) => {
-      if (i >= 0 && c.status !== "idle") {
-        [...c.a, ...c.b].forEach((n) => s.add(n));
+  const busyTeams = useMemo(() => {
+    const s = new Set<number>();
+    app.courts.forEach((c) => {
+      if (c.status !== "idle") {
+        if (c.t1 >= 0) s.add(c.t1);
+        if (c.t2 >= 0) s.add(c.t2);
       }
     });
     return s;
   }, [app.courts]);
-
-  const freePlayers = app.members.filter(
-    (n) => isArrived(app, n) && !inCourtNames.has(n)
-  );
 
   const standings = useMemo(
     () =>
@@ -236,10 +241,12 @@ export default function TournamentBoard() {
         .map((n) => ({
           name: n,
           pts: app.scores?.[n] ?? 0,
-          games: playedOf(app, n),
-          wins: app.games.filter((g) =>
-            g.a.includes(n) ? g.sa > g.sb : g.b.includes(n) && g.sb > g.sa
-          ).length,
+          games: playerGames(app, n),
+          wins: app.games.filter((g) => {
+            const inA = app.teams[g.t1]?.includes(n);
+            const inB = app.teams[g.t2]?.includes(n);
+            return inA ? g.sa > g.sb : inB ? g.sb > g.sa : false;
+          }).length,
         }))
         .sort((x, y) => y.pts - x.pts || y.games - x.games),
     [app]
@@ -276,8 +283,8 @@ export default function TournamentBoard() {
     });
 
   const removeMember = (name: string) => {
-    if (inCourtNames.has(name)) {
-      alert("คนนี้อยู่ในคอร์ดอยู่ ลาก/เคลียร์คอร์ดก่อน");
+    if (app.teams.some((t) => t.includes(name))) {
+      alert("คนนี้ถูกจับคู่แล้ว — เคลียร์การจับคู่/เริ่มใหม่ก่อน");
       return;
     }
     if (!window.confirm(`ลบ "${name}" ออกจากสมาชิก?`)) return;
@@ -296,16 +303,18 @@ export default function TournamentBoard() {
   };
 
   const clearRoster = () => {
-    if (inCourtNames.size > 0) {
-      alert("มีคนอยู่ในคอร์ดอยู่ — เคลียร์คอร์ดก่อน");
+    if (busyTeams.size > 0) {
+      alert("มีคู่ทีมอยู่ในคอร์ดอยู่ — เคลียร์คอร์ดก่อน");
       return;
     }
     if (!window.confirm("ลบรายชื่อทั้งหมด? (ลบสมาชิก แต้ม และประวัติเกม)")) return;
+    setScores({});
     commit((prev) => ({
       ...prev,
       members: [],
       presence: {},
       scores: {},
+      teams: [],
       games: [],
       finishedAt: null,
       courts: prev.courts.map(() => emptyCourt()),
@@ -313,13 +322,43 @@ export default function TournamentBoard() {
   };
 
   const resetTournament = () => {
-    if (!window.confirm("เริ่ม tournament ใหม่? (ล้างแต้ม เกม และคอร์ด)")) return;
+    if (!window.confirm("เริ่ม tournament ใหม่? (ล้างแต้ม เกม คอร์ด และการจับคู่)"))
+      return;
     setScores({});
     commit((prev) => ({
       ...prev,
       scores: {},
+      teams: [],
       games: [],
       finishedAt: null,
+      courts: prev.courts.map(() => emptyCourt()),
+    }));
+  };
+
+  const drawTeams = () => {
+    const st = appRef.current;
+    if (busyTeams.size > 0) {
+      alert("มีคู่ทีมอยู่ในคอร์ดอยู่ — รอเคลียร์คอร์ดก่อนจับคู่ใหม่");
+      return;
+    }
+    const arrived = st.members.filter((n) => isArrived(st, n));
+    if (arrived.length < 4) {
+      alert("ต้องมีสมาชิกที่เช็คชื่อแล้วอย่างน้อย 4 คน");
+      return;
+    }
+    const pool = [...arrived];
+    const teams: string[][] = [];
+    while (pool.length >= 2) {
+      const i = Math.floor(rand01() * pool.length);
+      const p1 = pool.splice(i, 1)[0];
+      const j = Math.floor(rand01() * pool.length);
+      const p2 = pool.splice(j, 1)[0];
+      teams.push([p1, p2]);
+    }
+    commit((prev) => ({
+      ...prev,
+      teams,
+      games: [],
       courts: prev.courts.map(() => emptyCourt()),
     }));
   };
@@ -338,110 +377,78 @@ export default function TournamentBoard() {
         : prev
     );
 
-  const drawCourt = (idx: number) => {
+  const drawMatch = (idx: number) => {
     const st = appRef.current;
-    const locked = new Set<string>();
-    st.courts.forEach((c, i) => {
-      if (i === idx) return;
-      if (c.status !== "idle") [...c.a, ...c.b].forEach((n) => n && locked.add(n));
-    });
-    const pool = st.members.filter((n) => isArrived(st, n) && !locked.has(n));
-    if (pool.length < 4) return;
+    if (st.teams.length < 2) return;
+    const played = playedMatchups(st);
+
+    const candidates = st.teams
+      .map((_, t) => t)
+      .filter((t) => !busyTeams.has(t))
+      .filter((t) => t < st.teams.length && st.teams[t].length === 2);
 
     const now = nowMs();
-    const lastPlay = (n: string) =>
+    const lastPlay = (t: number) =>
       st.games.reduce(
-        (m, g) => (g.a.includes(n) || g.b.includes(n) ? Math.max(m, g.ts) : m),
+        (m, g) => (g.t1 === t || g.t2 === t ? Math.max(m, g.ts) : m),
         0
       );
-    const rested = pool.filter((n) => now - lastPlay(n) >= 60_000);
-    const source = rested.length >= 4 ? rested : pool;
+    const rested = candidates.filter((t) => now - lastPlay(t) >= 60_000);
+    const source = rested.length >= 2 ? rested : candidates;
+    if (source.length < 2) return;
 
-    const played = (n: string) => playedOf(st, n);
-    const minP = Math.min(...source.map((n) => played(n)));
-    const weightOf = (n: string) =>
-      DIFF_WEIGHTS[Math.min(played(n) - minP, DIFF_WEIGHTS.length - 1)];
+    const minGames = Math.min(...source.map((t) => teamGames(st, t)));
+    const weightOf = (t: number) => {
+      const diff = teamGames(st, t) - minGames;
+      return [4, 2.5, 1.2, 0.6, 0.3, 0.2][Math.min(diff, 5)];
+    };
 
-    const sample = (k: number): string[] => {
+    const samplePair = (): [number, number] | null => {
       const left = [...source];
-      const out: string[] = [];
-      while (out.length < k && left.length > 0) {
+      const out: number[] = [];
+      while (out.length < 2 && left.length > 0) {
         let total = 0;
-        for (const n of left) total += Math.max(weightOf(n), 0.001);
+        for (const t of left) total += Math.max(weightOf(t), 0.001);
         if (total <= 0) break;
         let r = rand01() * total;
         let chosen = left[left.length - 1];
-        for (const n of left) {
-          r -= Math.max(weightOf(n), 0.001);
+        for (const t of left) {
+          r -= Math.max(weightOf(t), 0.001);
           if (r <= 0) {
-            chosen = n;
+            chosen = t;
             break;
           }
         }
         out.push(chosen);
         left.splice(left.indexOf(chosen), 1);
       }
-      return out;
+      return out.length === 2 ? ([out[0], out[1]] as [number, number]) : null;
     };
 
-    const us = usedPairsOf(st.games);
-    const current = appRef.current.courts[idx];
-    const curSet = new Set([...current.a, ...current.b].filter(Boolean));
-    const same4 = (four: string[]) =>
-      four.length === 4 &&
-      curSet.size === 4 &&
-      [...curSet].every((n) => four.includes(n));
-
-    let best: { a: string[]; b: string[]; used: number } | null = null;
-    for (let t = 0; t < 60; t++) {
-      const four = sample(4);
-      if (four.length < 4) break;
-      const [p0, p1, p2, p3] = four;
-      const opts: [string[], string[]][] = [
-        [
-          [p0, p1],
-          [p2, p3],
-        ],
-        [
-          [p0, p2],
-          [p1, p3],
-        ],
-        [
-          [p0, p3],
-          [p1, p2],
-        ],
-      ];
-      const flip = rand01() < 0.5;
-      const options = flip ? ([...opts].reverse() as [string[], string[]][]) : opts;
-      for (const o of options) {
-        if (same4(four)) continue;
-        const used =
-          (us.has(pairKey(o[0][0], o[0][1])) ? 1 : 0) +
-          (us.has(pairKey(o[1][0], o[1][1])) ? 1 : 0);
-        if (!best || used < best.used) {
-          best = { a: [...o[0]], b: [...o[1]], used };
-          if (used === 0) break;
-        }
-      }
-      if (best && best.used === 0) break;
+    let best: [number, number] | null = null;
+    for (let t = 0; t < 80; t++) {
+      const pair = samplePair();
+      if (!pair) break;
+      if (played.has(matchupKey(pair[0], pair[1]))) continue;
+      best = pair;
+      break;
+    }
+    if (!best) {
+      best = samplePair();
     }
     if (!best) return;
+    const [a, b] = best;
     commit((prev) => {
       if (idx >= prev.courts.length) return prev;
       const courts = [...prev.courts];
-      courts[idx] = {
-        a: [...best.a],
-        b: [...best.b],
-        status: "ready",
-        startAt: null,
-      };
+      courts[idx] = { t1: a, t2: b, status: "ready", startAt: null };
       return { ...prev, courts };
     });
   };
 
   const drawAllIdle = () => {
     app.courts.forEach((c, i) => {
-      if (c.status === "idle") drawCourt(i);
+      if (c.status === "idle") drawMatch(i);
     });
   };
 
@@ -449,7 +456,7 @@ export default function TournamentBoard() {
     commit((prev) => {
       if (idx >= prev.courts.length) return prev;
       const courts = [...prev.courts];
-      courts[idx] = { ...courts[idx], status: "playing", startAt: Date.now() };
+      courts[idx] = { ...courts[idx], status: "playing", startAt: nowMs() };
       return { ...prev, courts };
     });
 
@@ -464,7 +471,7 @@ export default function TournamentBoard() {
   const endGame = (idx: number) => {
     const st = appRef.current;
     const c = st.courts[idx];
-    if (!c || c.a.length !== 2 || c.b.length !== 2) return;
+    if (!c || c.t1 < 0 || c.t2 < 0) return;
     const raw = scores[idx];
     const sa = Number(raw?.a);
     const sb = Number(raw?.b);
@@ -477,13 +484,15 @@ export default function TournamentBoard() {
       return;
     }
     const diff = Math.abs(sa - sb);
+    const teamA = [...(st.teams[c.t1] ?? [])];
+    const teamB = [...(st.teams[c.t2] ?? [])];
     const winA = sa > sb;
-    const wTeam = winA ? [...c.a] : [...c.b];
-    const lTeam = winA ? [...c.b] : [...c.a];
+    const wTeam = winA ? teamA : teamB;
+    const lTeam = winA ? teamB : teamA;
     commit((prev) => {
       const games = [
         ...prev.games,
-        { ts: Date.now(), a: [...c.a], b: [...c.b], sa, sb },
+        { ts: nowMs(), t1: c.t1, t2: c.t2, sa, sb },
       ];
       const scores2 = { ...(prev.scores ?? {}) };
       wTeam.forEach((n) => {
@@ -494,12 +503,11 @@ export default function TournamentBoard() {
       });
       const courts = [...prev.courts];
       courts[idx] = emptyCourt();
-      const used = usedPairsOf(games);
-      const arrivals = prev.members.filter((n) => isArrived(prev, n));
-      const total = pairCount(arrivals.length);
+      const used = playedMatchups({ ...prev, games });
+      const total = pairwise(prev);
       const finishedAt =
         prev.finishedAt ??
-        (total > 0 && used.size >= total ? Date.now() : null);
+        (total > 0 && used.size >= total ? nowMs() : null);
       return { ...prev, games, scores: scores2, courts, finishedAt };
     });
     setScores((prev) => {
@@ -549,6 +557,9 @@ export default function TournamentBoard() {
       "bg-lime-100 text-lime-700 animate-pulse dark:bg-lime-950 dark:text-lime-300",
   };
 
+  const teamLabel = (t: number) =>
+    t >= 0 && app.teams[t] ? app.teams[t].join(" × ") : "—";
+
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 flex-1">
       <header className="mb-8">
@@ -559,7 +570,7 @@ export default function TournamentBoard() {
             โหมด Tournament
           </h1>
           <p className="relative mt-2 text-sm text-emerald-100/90">
-            หมุนคู่แบบรอบครบทุกคู่ — แต้ม = ผลต่างของสกอร์ (21−17 → +4 / −4)
+            จับคู่ประจำ แล้วหมุนทีมชนกันครบทุกคู่จนจบ — แต้ม = ผลต่าง (21−17 → +4 / −4)
           </p>
           <div className="relative mt-3">
             <Link
@@ -572,17 +583,16 @@ export default function TournamentBoard() {
         </div>
       </header>
 
-      {done &&
-        (app.finishedAt ? (
-          <div className="mb-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-center dark:border-emerald-700 dark:bg-emerald-950/40">
-            <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
-              🏁 Tournament จบแล้ว — ทุกคู่ได้เล่นครบ
-            </p>
-            <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
-              ดูอันดับตารางคะแนนหรือกด “เริ่มใหม่” เพื่อเล่นรอบใหม่
-            </p>
-          </div>
-        ) : null)}
+      {finished && app.finishedAt && (
+        <div className="mb-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-center dark:border-emerald-700 dark:bg-emerald-950/40">
+          <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
+            Tournament จบแล้ว — ทุกทีมได้เจอกันครบแล้ว
+          </p>
+          <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
+            ดูอันดับตารางคะแนนหรือกด “เริ่มใหม่” เพื่อเริ่มรอบใหม่
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-col gap-6 lg:flex-row">
         <aside className="lg:w-80 lg:shrink-0">
@@ -592,11 +602,11 @@ export default function TournamentBoard() {
                 <div className="flex items-center gap-2">
                   <span className="h-4 w-1.5 rounded-full bg-gradient-to-b from-emerald-500 to-teal-400" />
                   <h2 className="font-semibold text-slate-700 dark:text-slate-200">
-                    รายชื่อ ({rosterTotal})
+                    รายชื่อ ({app.members.length})
                   </h2>
                 </div>
                 <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                  {unlockedArrived} มาแล้ว
+                  {arrivedMembers.length} มาแล้ว
                 </span>
               </div>
               <div className="mb-3 flex flex-wrap gap-1.5">
@@ -619,23 +629,26 @@ export default function TournamentBoard() {
                   เคลียร์รายชื่อ
                 </button>
               </div>
-              {rosterTotal === 0 ? (
+              {app.members.length === 0 ? (
                 <p className="text-sm text-slate-400 dark:text-slate-500">
                   ยังไม่มีสมาชิก — เพิ่มชื่อด้านล่างก่อน
                 </p>
               ) : (
-                <ul className={`sidebar-scroll space-y-1.5 ${rosterTotal > 10 ? "max-h-[26rem] overflow-y-auto pr-1" : ""}`}>
+                <ul className={`sidebar-scroll space-y-1.5 ${app.members.length > 10 ? "max-h-[24rem] overflow-y-auto pr-1" : ""}`}>
                   {app.members.map((name) => {
                     const arrived = isArrived(app, name);
                     const pts = app.scores?.[name] ?? 0;
-                    const gcount = playedOf(app, name);
+                    const gcount = playerGames(app, name);
+                    const isPaired = app.teams.some((t) => t.includes(name));
                     return (
                       <li
                         key={name}
                         className={`flex select-none items-center gap-2.5 rounded-xl border px-3 py-2.5 transition-all ${
-                          arrived
-                            ? "border-slate-100 bg-white hover:border-emerald-200 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-emerald-700"
-                            : "border-slate-100 bg-slate-50/60 dark:border-slate-700/80 dark:bg-slate-800/50"
+                          isPaired
+                            ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-800/70 dark:bg-emerald-950/40"
+                            : arrived
+                              ? "border-slate-100 bg-white dark:border-slate-700 dark:bg-slate-800"
+                              : "border-slate-100 bg-slate-50/60 dark:border-slate-700/80 dark:bg-slate-800/50"
                         }`}
                       >
                         <button
@@ -676,6 +689,11 @@ export default function TournamentBoard() {
                             >
                               {pts > 0 ? `+${pts}` : pts} แต้ม
                             </span>
+                            {isPaired && (
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                                มีคู่แล้ว
+                              </span>
+                            )}
                             {!arrived && (
                               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300">
                                 ยังไม่มา
@@ -720,13 +738,67 @@ export default function TournamentBoard() {
                 </button>
               </div>
               <p className="mt-2 text-[11px] text-slate-400 dark:text-slate-500">
-                คนที่เพิ่มใหม่ต้องกด ✓ เช็คชื่อก่อนถึงจะเข้าสุ่มคู่ได้
+                คนที่เพิ่มใหม่ต้องกด ✓ เช็คชื่อก่อน แล้วกด “สุ่มคู่ประจำ” เพื่อจับคู่ประจำ
               </p>
             </section>
           </div>
         </aside>
 
         <section className="flex-1 space-y-4">
+          <section className="rounded-2xl bg-white p-5 border border-slate-100 shadow-[0_4px_20px_rgba(16,185,129,0.08)] dark:bg-slate-800 dark:border-slate-700">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="h-4 w-1.5 rounded-full bg-gradient-to-b from-amber-500 to-amber-400" />
+                <h2 className="font-semibold text-slate-700 dark:text-slate-200">
+                  คู่ประจำ ({app.teams.length} คู่)
+                </h2>
+              </div>
+              <button
+                onClick={drawTeams}
+                disabled={arrivedMembers.length < 4}
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-600/25 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                สุ่มคู่ประจำ
+              </button>
+            </div>
+            {app.teams.length === 0 ? (
+              <p className="text-sm text-slate-400 dark:text-slate-500">
+                ยังไม่มีการจับคู่ — กด “สุ่มคู่ประจำ” จับคู่ทั้งหมด (เล่นคู่กันจนจบ tournament)
+              </p>
+            ) : (
+              <>
+                <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                  {app.teams.map((team, t) => (
+                    <li
+                      key={t}
+                      className={`rounded-xl border px-3 py-2 text-center ${
+                        team.length === 2
+                          ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-800/70 dark:bg-emerald-950/40"
+                          : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50"
+                      }`}
+                    >
+                      <div className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">
+                        ทีม {t + 1}
+                      </div>
+                      <div className="mt-0.5 text-sm font-bold text-emerald-800 dark:text-emerald-300">
+                        {teamLabel(t)}
+                      </div>
+                      <div className="mt-0.5 text-[10px] text-slate-400 dark:text-slate-500">
+                        ชนะ {teamGames(app, t)}/เล่น {teamGames(app, t) / 2}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                {unpaired.length > 0 && (
+                  <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-300">
+                    {unpaired.length} คนยังไม่มีคู่: {unpaired.join(" · ")} — กด
+                    “สุ่มคู่ประจำ” อีกครั้ง (หรือรอคนมาครบ)
+                  </p>
+                )}
+              </>
+            )}
+          </section>
+
           <div className="flex items-center justify-between rounded-2xl bg-white p-4 border border-slate-100 shadow-[0_4px_20px_rgba(16,185,129,0.08)] dark:bg-slate-800 dark:border-slate-700">
             <div className="flex items-center gap-2">
               <span className="h-4 w-1.5 rounded-full bg-gradient-to-b from-emerald-500 to-teal-400" />
@@ -737,9 +809,10 @@ export default function TournamentBoard() {
             <div className="flex gap-2">
               <button
                 onClick={drawAllIdle}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-600/25 transition-all hover:-translate-y-0.5 hover:bg-emerald-700"
+                disabled={app.teams.length < 2}
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-600/25 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                สุ่มทุกคอร์ด
+                สุ่มคู่แข่งทุกคอร์ด
               </button>
               <button
                 onClick={removeCourt}
@@ -758,11 +831,11 @@ export default function TournamentBoard() {
             </div>
           </div>
 
-          {totalPairs > 0 && (
+          {totalMatchups > 0 && (
             <div className="rounded-2xl bg-white p-4 border border-slate-100 shadow-[0_4px_20px_rgba(16,185,129,0.08)] dark:bg-slate-800 dark:border-slate-700">
               <div className="flex items-center justify-between text-sm">
                 <span className="font-medium text-slate-600 dark:text-slate-300">
-                  คู่ที่เล่นครบแล้ว {usedPairs.size}/{totalPairs} คู่
+                  ทีม-ทีมที่เจอกันแล้ว {doneMatchups.size}/{totalMatchups} คู่
                 </span>
                 <span className="text-xs text-slate-400 dark:text-slate-500">
                   {Math.floor(progress * 100)}%
@@ -778,23 +851,22 @@ export default function TournamentBoard() {
           )}
 
           {app.courts.map((court, idx) => {
-            const teamBox = (
-              names: string[],
-              color: string,
-              bg: string
-            ) => (
-              <div
-                className={`flex flex-1 flex-col gap-2 rounded-2xl border p-3 ${bg}`}
-              >
-                {names.length > 0 ? (
-                  names.map((n) => (
-                    <span
-                      key={n}
-                      className={`rounded-xl bg-white px-3 py-2.5 text-center text-sm font-bold shadow-sm dark:bg-slate-800 ${color}`}
-                    >
-                      {n}
+            const teamBox = (t: number, color: string, bg: string) => (
+              <div className={`flex flex-1 flex-col gap-2 rounded-2xl border p-3 ${bg}`}>
+                {t >= 0 && app.teams[t] ? (
+                  <>
+                    <span className="text-center text-[10px] font-semibold text-slate-400 dark:text-slate-500">
+                      ทีม {t + 1}
                     </span>
-                  ))
+                    {app.teams[t].map((n) => (
+                      <span
+                        key={n}
+                        className={`rounded-xl bg-white px-3 py-2.5 text-center text-sm font-bold shadow-sm dark:bg-slate-800 ${color}`}
+                      >
+                        {n}
+                      </span>
+                    ))}
+                  </>
                 ) : (
                   <span className="rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 text-center text-sm font-semibold text-slate-300 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-500">
                     ว่าง
@@ -821,7 +893,7 @@ export default function TournamentBoard() {
                   >
                     <span className="h-1.5 w-1.5 rounded-full bg-current" />
                     {court.status === "idle"
-                      ? "ยังไม่จับคู่"
+                      ? "ยังไม่จับคู่แข่ง"
                       : court.status === "ready"
                         ? "พร้อมเล่น"
                         : "กำลังเล่น"}
@@ -831,26 +903,26 @@ export default function TournamentBoard() {
                 {court.status === "idle" ? (
                   <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 px-4 py-6 dark:border-slate-700 dark:bg-slate-800/50">
                     <p className="text-sm font-medium text-slate-400 dark:text-slate-500">
-                      ผู้เล่นว่าง {freePlayers.length} คน
+                      ไม่มีคู่ทีมอยู่ในคอร์ด
                     </p>
                     <button
-                      onClick={() => drawCourt(idx)}
-                      disabled={freePlayers.length < 4}
+                      onClick={() => drawMatch(idx)}
+                      disabled={app.teams.length < 2}
                       className="rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white shadow-md shadow-emerald-600/25 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      สุ่มคู่
+                      สุ่มคู่แข่ง
                     </button>
                   </div>
                 ) : (
                   <>
                     <div className="flex items-stretch gap-3">
-                      {teamBox(court.a, "text-emerald-800 dark:text-emerald-300", "border-emerald-200 bg-emerald-50/60 dark:border-emerald-800/60 dark:bg-emerald-950/40")}
+                      {teamBox(court.t1, "text-emerald-800 dark:text-emerald-300", "border-emerald-200 bg-emerald-50/60 dark:border-emerald-800/60 dark:bg-emerald-950/40")}
                       <div className="flex items-center">
                         <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-rose-600 text-sm font-extrabold text-white shadow-md shadow-rose-500/30">
                           VS
                         </span>
                       </div>
-                      {teamBox(court.b, "text-sky-800 dark:text-sky-300", "border-sky-200 bg-sky-50/60 dark:border-sky-800/60 dark:bg-sky-950/40")}
+                      {teamBox(court.t2, "text-sky-800 dark:text-sky-300", "border-sky-200 bg-sky-50/60 dark:border-sky-800/60 dark:bg-sky-950/40")}
                     </div>
 
                     {court.status === "ready" && (
@@ -862,7 +934,7 @@ export default function TournamentBoard() {
                           เริ่มเกม
                         </button>
                         <button
-                          onClick={() => drawCourt(idx)}
+                          onClick={() => drawMatch(idx)}
                           className="rounded-xl bg-slate-100 px-6 py-2.5 font-semibold text-slate-600 transition-colors hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
                         >
                           สุ่มใหม่
@@ -879,31 +951,31 @@ export default function TournamentBoard() {
                     {court.status === "playing" && (
                       <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50/60 p-4 dark:border-sky-800/60 dark:bg-sky-950/40">
                         <div className="flex items-stretch gap-3">
-                          {scoreInput(idx, "a", "ทีม A", court.a)}
+                          {scoreInput(idx, "a", `ทีม ${court.t1 + 1}`, app.teams[court.t1] ?? [])}
                           <div className="flex items-center">
                             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-rose-600 text-xs font-extrabold text-white">
                               VS
                             </span>
                           </div>
-                          {scoreInput(idx, "b", "ทีม B", court.b)}
+                          {scoreInput(idx, "b", `ทีม ${court.t2 + 1}`, app.teams[court.t2] ?? [])}
                         </div>
                         <p className="mt-2 text-center text-[11px] text-sky-600 dark:text-sky-400">
-                          ผู้ชนะได้แต้ม = ผลต่าง (เช่น 21:17 → +4 / −4)
+                          ผู้ชนะในทีมทั้งคู่ได้ +ผลต่าง ผู้แพ้ −ผลต่าง (เช่น 21:17 → +4 / −4)
                         </p>
-                          <div className="mt-3 flex justify-center gap-3">
-                            <button
-                              onClick={() => endGame(idx)}
-                              className="rounded-xl bg-emerald-600 px-6 py-2.5 font-semibold text-white shadow-md shadow-emerald-600/25 transition-all hover:-translate-y-0.5 hover:bg-emerald-700"
-                            >
-                              บันทึกพร้อมจบเกม
-                            </button>
-                            <button
-                              onClick={() => clearCourt(idx)}
-                              className="rounded-xl bg-slate-100 px-6 py-2.5 font-semibold text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
-                            >
-                              ยกเลิก
-                            </button>
-                          </div>
+                        <div className="mt-3 flex justify-center gap-3">
+                          <button
+                            onClick={() => endGame(idx)}
+                            className="rounded-xl bg-emerald-600 px-6 py-2.5 font-semibold text-white shadow-md shadow-emerald-600/25 transition-all hover:-translate-y-0.5 hover:bg-emerald-700"
+                          >
+                            บันทึกพร้อมจบเกม
+                          </button>
+                          <button
+                            onClick={() => clearCourt(idx)}
+                            className="rounded-xl bg-slate-100 px-6 py-2.5 font-semibold text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
+                          >
+                            ยกเลิก
+                          </button>
+                        </div>
                       </div>
                     )}
                   </>
