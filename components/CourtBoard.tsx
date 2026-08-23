@@ -41,6 +41,9 @@ const emptyCourt = (): CourtState => ({
   endedAt: null,
 });
 
+const courtHasPlayers = (c: CourtState) =>
+  [...c.teamA, ...c.teamB].some(Boolean);
+
 const defaultState = (): AppState => ({
   members: DEFAULT_MEMBERS,
   courts: Array.from({ length: 2 }, emptyCourt),
@@ -324,7 +327,7 @@ useEffect(() => {
     const s = new Set<string>();
     st.courts.forEach((c, i) => {
       if (i === exceptIdx) return;
-      if (c.status === "ready" || c.status === "playing") {
+      if (c.status === "ready" || c.status === "playing" || c.status === "done") {
         [...c.teamA, ...c.teamB].forEach((n) => s.add(n));
       }
       if (shuffling.includes(i)) {
@@ -653,6 +656,8 @@ useEffect(() => {
         status: "done",
         startAt: null,
         endedAt: Date.now(),
+        teamA: [],
+        teamB: [],
       };
       return { ...next, courts };
     });
@@ -661,6 +666,13 @@ useEffect(() => {
   const doSwap = (idx: number, oldName: string, newName: string) => {
     commit((prev) => {
       if (idx >= prev.courts.length) return prev;
+      const newNameInAnother = prev.courts.some(
+        (c, i) =>
+          i !== idx &&
+          c.status !== "idle" &&
+          [...c.teamA, ...c.teamB].includes(newName)
+      );
+      if (newNameInAnother) return prev;
       const courts = [...prev.courts];
       const court = courts[idx];
       const aIdx = court.teamA.indexOf(oldName);
@@ -773,6 +785,13 @@ useEffect(() => {
       if (tIdx >= prev.courts.length) return prev;
       const target = prev.courts[tIdx];
       if (target.status === "idle") return prev;
+      const nameInAnother = prev.courts.some(
+        (c, i) =>
+          i !== tIdx &&
+          c.status !== "idle" &&
+          [...c.teamA, ...c.teamB].includes(name)
+      );
+      if (nameInAnother) return prev;
       const occupant =
         tTeam === "A" ? target.teamA[tSlot] : target.teamB[tSlot];
       if (occupant === name) return prev;
@@ -941,7 +960,7 @@ useEffect(() => {
                 <p className="text-sm text-slate-400">
                   ยังไม่มีสมาชิก — เพิ่มชื่อด้านล่างก่อน
                 </p>
-              ) : app.courts.filter((c) => c.status !== "idle").length ===
+              ) : app.courts.filter((c) => c.status !== "idle" && courtHasPlayers(c)).length ===
                 0 ? (
                 <p className="text-sm text-slate-400">
                   ยังไม่มีคู่ — กดสุ่มคู่ที่คอร์ด
@@ -949,7 +968,8 @@ useEffect(() => {
               ) : (
                 app.courts.map(
                   (court, idx) =>
-                    court.status !== "idle" && (
+                    court.status !== "idle" &&
+                    courtHasPlayers(court) && (
                       <div key={idx} className="mb-3 last:mb-0">
                         <div className="mb-1 flex items-center justify-between text-xs font-semibold text-slate-500">
                           <span>คอร์ด {idx + 1}</span>
