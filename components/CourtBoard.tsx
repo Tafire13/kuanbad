@@ -503,6 +503,8 @@ useEffect(() => {
     const pool = poolFor(st, idx);
     if (pool.length < 4) return null;
 
+    const DIFF_WEIGHTS = [4, 2.5, 1.2, 0.6, 0.3, 0.2];
+
     const gamesOf = (n: string) => st.sessionGames[n] ?? 0;
     const minGames = Math.min(...pool.map((n) => gamesOf(n)));
     const waitingSince = st.waitingSince ?? {};
@@ -521,7 +523,7 @@ useEffect(() => {
 
     const weightOf = (n: string) => {
       const diff = gamesOf(n) - minGames;
-      const wGame = diff === 0 ? 3 : diff === 1 ? 1.5 : 1;
+      const wGame = DIFF_WEIGHTS[Math.min(diff, DIFF_WEIGHTS.length - 1)];
       const wait = waitingSince[n];
       const waitMin = wait ? Math.max(0, (tNow - wait) / 60000) : 3;
       const wWait = Math.max(0.2, Math.min(1, waitMin / 2.5));
