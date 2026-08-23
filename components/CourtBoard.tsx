@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const DEFAULT_MEMBERS: string[] = [];
@@ -994,6 +995,14 @@ useEffect(() => {
           <p className="relative mt-2 text-sm text-emerald-100/90">
             {subtitle ?? `จับคู่ตีแบดมินตันและจับเวลา — ${app.courts.length} คอร์ด`}
           </p>
+          <div className="relative mt-3">
+            <Link
+              href="/tournament"
+              className="rounded-full bg-white/15 px-4 py-1.5 text-xs font-semibold text-white backdrop-blur transition-colors hover:bg-white/25"
+            >
+              โหมด Tournament
+            </Link>
+          </div>
         </div>
       </header>
 
