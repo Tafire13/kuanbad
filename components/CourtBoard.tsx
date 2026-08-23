@@ -31,6 +31,7 @@ interface AppState {
   lastPartner: Record<string, string>;
   partnerHistory: Record<string, string[]>;
   waitingSince: Record<string, number>;
+  presence: Record<string, boolean>;
 }
 
 const emptyCourt = (): CourtState => ({
@@ -51,7 +52,10 @@ const defaultState = (): AppState => ({
   lastPartner: {},
   partnerHistory: {},
   waitingSince: {},
+  presence: {},
 });
+
+const isArrived = (st: AppState, n: string) => st.presence?.[n] ?? true;
 
 function normalizeState(st: AppState): AppState {
   const partnerHistory = st.partnerHistory ?? {};
@@ -68,6 +72,7 @@ function normalizeState(st: AppState): AppState {
     lastPartner: st.lastPartner ?? {},
     partnerHistory,
     waitingSince: st.waitingSince ?? {},
+    presence: st.presence ?? {},
   };
 }
 
@@ -338,7 +343,9 @@ useEffect(() => {
   };
 
   const poolFor = (st: AppState, idx: number) =>
-    st.members.filter((n) => !lockedPlayers(st, idx).has(n));
+    st.members.filter(
+      (n) => isArrived(st, n) && !lockedPlayers(st, idx).has(n)
+    );
 
   const inCourt = useMemo(() => {
     const s = new Set<string>();
@@ -350,7 +357,10 @@ useEffect(() => {
     return s;
   }, [app.courts]);
 
-  const freePlayers = app.members.filter((n) => !inCourt.has(n));
+  const freePlayers = app.members.filter(
+    (n) => isArrived(app, n) && !inCourt.has(n)
+  );
+  const unArrivedCount = app.members.filter((n) => !isArrived(app, n)).length;
   const playingPlayers = useMemo(
     () =>
       new Set(
@@ -395,8 +405,30 @@ useEffect(() => {
       return;
     }
     setNewName("");
-    commit((prev) => ({ ...prev, members: [...prev.members, name] }));
+    commit((prev) => ({
+      ...prev,
+      members: [...prev.members, name],
+      presence: { ...(prev.presence ?? {}), [name]: false },
+    }));
   };
+
+  const togglePresence = (name: string) =>
+    commit((prev) => ({
+      ...prev,
+      presence: {
+        ...(prev.presence ?? {}),
+        [name]: !isArrived(prev, name),
+      },
+    }));
+
+  const checkAllPresence = () =>
+    commit((prev) => {
+      const presence = { ...(prev.presence ?? {}) };
+      prev.members.forEach((n) => {
+        presence[n] = true;
+      });
+      return { ...prev, presence };
+    });
 
   const removeMember = (name: string) => {
     if (inCourt.has(name)) {
@@ -409,9 +441,11 @@ useEffect(() => {
       const lastPartner = { ...prev.lastPartner };
       const waitingSince = { ...prev.waitingSince };
       const partnerHistory = { ...(prev.partnerHistory ?? {}) };
+      const presence = { ...(prev.presence ?? {}) };
       delete sessionGames[name];
       delete waitingSince[name];
       delete partnerHistory[name];
+      delete presence[name];
       Object.keys(lastPartner).forEach((k) => {
         if (lastPartner[k] === name) delete lastPartner[k];
       });
@@ -425,6 +459,7 @@ useEffect(() => {
         lastPartner,
         partnerHistory,
         waitingSince,
+        presence,
       };
     });
   };
@@ -450,6 +485,7 @@ useEffect(() => {
       lastPartner: {},
       partnerHistory: {},
       waitingSince: {},
+      presence: {},
     }));
   };
 
@@ -671,6 +707,7 @@ useEffect(() => {
   const doSwap = (idx: number, oldName: string, newName: string) => {
     commit((prev) => {
       if (idx >= prev.courts.length) return prev;
+      if (!isArrived(prev, newName)) return prev;
       const newNameInAnother = prev.courts.some(
         (c, i) =>
           i !== idx &&
@@ -790,6 +827,7 @@ useEffect(() => {
       if (tIdx >= prev.courts.length) return prev;
       const target = prev.courts[tIdx];
       if (target.status === "idle") return prev;
+      if (!isArrived(prev, name)) return prev;
       const nameInAnother = prev.courts.some(
         (c, i) =>
           i !== tIdx &&
@@ -1031,7 +1069,17 @@ useEffect(() => {
                     คนที่ว่าง ({freePlayers.length})
                   </h2>
                 </div>
+                {unArrivedCount > 0 && (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                    {unArrivedCount} ยังไม่เช็ค
+                  </span>
+                )}
               </div>
+              {unArrivedCount > 0 && (
+                <p className="mb-2 text-[11px] leading-relaxed text-amber-600">
+                  คนที่ยังไม่เช็คชื่อจะไม่ถูกสุ่มลงเล่น — กดเช็คในรายชื่อด้านล่าง
+                </p>
+              )}
               {freePlayers.length === 0 ? (
                 <p className="text-sm text-slate-400">ทุกคนลงคอร์ดแล้ว</p>
               ) : (
@@ -1068,6 +1116,12 @@ useEffect(() => {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button
+                    onClick={checkAllPresence}
+                    className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-100"
+                  >
+                    เช็คชื่อทุกคน
+                  </button>
+                  <button
                     onClick={clearRoster}
                     className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500 hover:bg-slate-200"
                   >
@@ -1098,6 +1152,7 @@ useEffect(() => {
                 >
                     {app.members.map((name) => {
                       const active = playingPlayers.has(name);
+                      const arrived = isArrived(app, name);
                       const games = app.sessionGames[name] ?? 0;
                       const waitMin = waitSecOf(name);
                       const longest = waitMin > 0 && waitMin === maxWait;
@@ -1106,19 +1161,41 @@ useEffect(() => {
                           key={name}
                           className="group -mx-2 flex items-center justify-between rounded-lg px-2 py-1.5 transition-colors hover:bg-emerald-50/70"
                         >
-                          <span
-                            className={`font-medium ${
-                              active ? "text-emerald-700" : "text-slate-700"
-                            }`}
-                          >
-                            {name}
+                          <span className="flex min-w-0 items-center gap-2">
+                            <button
+                              onClick={() => togglePresence(name)}
+                              aria-label={`เช็คชื่อ ${name}`}
+                              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold transition-all ${
+                                arrived
+                                  ? "border-emerald-500 bg-emerald-500 text-white"
+                                  : "border-slate-300 bg-white text-slate-300 hover:border-emerald-400"
+                              }`}
+                            >
+                              ✓
+                            </button>
+                            <span
+                              className={`truncate font-medium ${
+                                arrived
+                                  ? active
+                                    ? "text-emerald-700"
+                                    : "text-slate-700"
+                                  : "text-slate-400 line-through"
+                              }`}
+                            >
+                              {name}
+                            </span>
+                            {!arrived && (
+                              <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                                ยังไม่มา
+                              </span>
+                            )}
                             {active && (
-                              <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
+                              <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
                                 เล่นอยู่
                               </span>
                             )}
                             {longest && (
-                              <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
+                              <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
                                 รอนานสุด
                               </span>
                             )}
@@ -1155,6 +1232,9 @@ useEffect(() => {
                 <span className="h-4 w-1.5 rounded-full bg-gradient-to-b from-emerald-500 to-teal-400" />
                 <h2 className="font-semibold text-slate-700">เพิ่มชื่อ</h2>
               </div>
+              <p className="mb-2 text-[11px] text-slate-400">
+                คนที่เพิ่มใหม่ยังไม่เช็คชื่อ — กด ✓ ในรายชื่อเมื่อมาถึงแล้ว
+              </p>
               <div className="flex gap-2">
                 <input
                   value={newName}
