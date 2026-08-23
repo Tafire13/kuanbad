@@ -42,9 +42,6 @@ const emptyCourt = (): CourtState => ({
   endedAt: null,
 });
 
-const courtHasPlayers = (c: CourtState) =>
-  [...c.teamA, ...c.teamB].some(Boolean);
-
 const defaultState = (): AppState => ({
   members: DEFAULT_MEMBERS,
   courts: Array.from({ length: 2 }, emptyCourt),
@@ -992,66 +989,6 @@ useEffect(() => {
       <div className="flex flex-col gap-6 lg:flex-row">
         <aside className="lg:w-80 lg:shrink-0">
           <div className="space-y-4 lg:sticky lg:top-6">
-            <section className="rounded-2xl bg-white p-5 border border-slate-100 shadow-[0_4px_20px_rgba(16,185,129,0.08)]">
-              <div className="mb-3 flex items-center gap-2">
-                <span className="h-4 w-1.5 rounded-full bg-gradient-to-b from-emerald-500 to-teal-400" />
-                <h2 className="font-semibold text-slate-700">
-                  คนที่อยู่ในคอร์ด
-                </h2>
-              </div>
-              {app.members.length === 0 ? (
-                <p className="text-sm text-slate-400">
-                  ยังไม่มีสมาชิก — เพิ่มชื่อด้านล่างก่อน
-                </p>
-              ) : app.courts.filter((c) => c.status !== "idle" && courtHasPlayers(c)).length ===
-                0 ? (
-                <p className="text-sm text-slate-400">
-                  ยังไม่มีคู่ — กดสุ่มคู่ที่คอร์ด
-                </p>
-              ) : (
-                app.courts.map(
-                  (court, idx) =>
-                    court.status !== "idle" &&
-                    courtHasPlayers(court) && (
-                      <div key={idx} className="mb-3 last:mb-0">
-                        <div className="mb-1 flex items-center justify-between text-xs font-semibold text-slate-500">
-                          <span>คอร์ด {idx + 1}</span>
-                          <span className="tabular-nums">
-                            {court.status === "playing"
-                              ? `เล่นอยู่ ${fmtClock(elapsedOf(court))}`
-                              : court.status === "done"
-                                ? "จบแล้ว"
-                                : "พร้อมเล่น"}
-                          </span>
-                        </div>
-                        <div className="rounded-xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50 to-emerald-100/80 px-2 py-2 shadow-sm">
-                          <div className="flex items-center justify-between gap-1 text-sm font-semibold text-emerald-800">
-                            <span className="flex-1 rounded-md bg-white px-2 py-1 text-center shadow-sm">
-                              {court.teamA[0] || "—"}
-                            </span>
-                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-500 text-[9px] font-extrabold text-white">
-                              VS
-                            </span>
-                            <span className="flex-1 rounded-md bg-white px-2 py-1 text-center shadow-sm">
-                              {court.teamA[1] || "—"}
-                            </span>
-                          </div>
-                          <div className="mt-1 flex items-center justify-between gap-1 text-sm font-medium text-emerald-700">
-                            <span className="flex-1 rounded-md bg-white px-2 py-1 text-center shadow-sm">
-                              {court.teamB[0] || "—"}
-                            </span>
-                            <span className="w-5 shrink-0" />
-                            <span className="flex-1 rounded-md bg-white px-2 py-1 text-center shadow-sm">
-                              {court.teamB[1] || "—"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                )
-              )}
-            </section>
-
             <section
               data-drop="bench"
               className={`rounded-2xl bg-white p-5 border border-slate-100 shadow-[0_4px_20px_rgba(16,185,129,0.08)] transition-all ${
@@ -1066,7 +1003,7 @@ useEffect(() => {
                 <div className="flex items-center gap-2">
                   <span className="h-4 w-1.5 rounded-full bg-gradient-to-b from-emerald-500 to-teal-400" />
                   <h2 className="font-semibold text-slate-700">
-                    คนที่ว่าง ({freePlayers.length})
+                    รายชื่อ ({app.members.length})
                   </h2>
                 </div>
                 {unArrivedCount > 0 && (
@@ -1075,66 +1012,31 @@ useEffect(() => {
                   </span>
                 )}
               </div>
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                <button
+                  onClick={checkAllPresence}
+                  className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-100"
+                >
+                  ✓ เช็คชื่อทุกคน
+                </button>
+                <button
+                  onClick={clearRoster}
+                  className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-200"
+                >
+                  เคลียร์รายชื่อ
+                </button>
+                <button
+                  onClick={resetSession}
+                  className="rounded-full bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-100"
+                >
+                  เริ่มรอบใหม่
+                </button>
+              </div>
               {unArrivedCount > 0 && (
                 <p className="mb-2 text-[11px] leading-relaxed text-amber-600">
-                  คนที่ยังไม่เช็คชื่อจะไม่ถูกสุ่มลงเล่น — กดเช็คในรายชื่อด้านล่าง
+                  คนที่ยังไม่เช็คชื่อจะไม่ถูกสุ่มลงเล่น — กด ✓ ที่ชื่อเมื่อมาถึง
                 </p>
               )}
-              {freePlayers.length === 0 ? (
-                <p className="text-sm text-slate-400">ทุกคนลงคอร์ดแล้ว</p>
-              ) : (
-                <div
-                  className={`sidebar-scroll flex flex-wrap gap-1.5 ${
-                    app.members.length > 10
-                      ? "max-h-40 overflow-y-auto"
-                      : ""
-                  }`}
-                >
-                  {freePlayers.map((name) => (
-                    <span
-                      key={name}
-                      {...pressHandlers(name, null)}
-                      className={`cursor-grab select-none rounded-full border border-emerald-100 bg-white px-3 py-1 text-sm text-slate-600 shadow-sm transition-all ${
-                        dragName === name
-                          ? "scale-110 opacity-60 ring-2 ring-rose-400"
-                          : ""
-                      }`}
-                      style={{ touchAction: "none" }}
-                    >
-                      {name}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            <section className="rounded-2xl bg-white p-5 border border-slate-100 shadow-[0_4px_20px_rgba(16,185,129,0.08)]">
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="h-4 w-1.5 rounded-full bg-gradient-to-b from-emerald-500 to-teal-400" />
-                  <h2 className="font-semibold text-slate-700">เวลาที่รอ</h2>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={checkAllPresence}
-                    className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-100"
-                  >
-                    เช็คชื่อทุกคน
-                  </button>
-                  <button
-                    onClick={clearRoster}
-                    className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500 hover:bg-slate-200"
-                  >
-                    เคลียร์รายชื่อ
-                  </button>
-                  <button
-                    onClick={resetSession}
-                    className="rounded-full bg-rose-50 px-3 py-1 text-xs font-medium text-rose-600 hover:bg-rose-100"
-                  >
-                    เริ่มรอบใหม่
-                  </button>
-                </div>
-              </div>
               {(() => {
                 const waitSecOf = (n: string) => {
                   const t = (app.waitingSince ?? {})[n];
@@ -1146,79 +1048,119 @@ useEffect(() => {
                 );
                 return (
                   <ul
-                  className={`sidebar-scroll divide-y divide-slate-100 ${
-                    app.members.length > 10 ? "max-h-72 overflow-y-auto" : ""
-                  }`}
-                >
+                    className={`sidebar-scroll space-y-1.5 ${
+                      app.members.length > 10 ? "max-h-[28rem] overflow-y-auto pr-1" : ""
+                    }`}
+                  >
                     {app.members.map((name) => {
                       const active = playingPlayers.has(name);
                       const arrived = isArrived(app, name);
                       const games = app.sessionGames[name] ?? 0;
                       const waitMin = waitSecOf(name);
                       const longest = waitMin > 0 && waitMin === maxWait;
+                      let inCourtIdx = -1;
+                      app.courts.forEach((c, i) => {
+                        if (
+                          c.status !== "idle" &&
+                          [...c.teamA, ...c.teamB].includes(name)
+                        ) {
+                          inCourtIdx = i;
+                        }
+                      });
                       return (
                         <li
                           key={name}
-                          className="group -mx-2 flex items-center justify-between rounded-lg px-2 py-1.5 transition-colors hover:bg-emerald-50/70"
+                          {...pressHandlers(
+                            name,
+                            inCourtIdx >= 0 ? inCourtIdx : null,
+                            inCourtIdx >= 0
+                              ? app.courts[inCourtIdx].status
+                              : undefined
+                          )}
+                          style={{ touchAction: "none" }}
+                          className={`group flex cursor-grab select-none items-center gap-2.5 rounded-xl border px-3 py-2.5 transition-all ${
+                            dragName === name
+                              ? "scale-[0.98] opacity-60 ring-2 ring-rose-400"
+                              : ""
+                          } ${
+                            arrived
+                              ? inCourtIdx >= 0
+                                ? "border-emerald-200 bg-emerald-50/70 hover:border-emerald-300"
+                                : "border-slate-100 bg-white hover:border-emerald-200"
+                              : "border-slate-100 bg-slate-50/60 hover:border-slate-200"
+                          }`}
                         >
-                          <span className="flex min-w-0 items-center gap-2">
-                            <button
-                              onClick={() => togglePresence(name)}
-                              aria-label={`เช็คชื่อ ${name}`}
-                              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold transition-all ${
-                                arrived
-                                  ? "border-emerald-500 bg-emerald-500 text-white"
-                                  : "border-slate-300 bg-white text-slate-300 hover:border-emerald-400"
-                              }`}
-                            >
-                              ✓
-                            </button>
+                          <button
+                            onClick={() => {
+                              if (suppressClickRef.current) return;
+                              togglePresence(name);
+                            }}
+                            aria-label={`เช็คชื่อ ${name}`}
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition-all ${
+                              arrived
+                                ? "border-emerald-500 bg-emerald-500 text-white"
+                                : "border-slate-300 bg-white text-slate-300 hover:border-emerald-400"
+                            }`}
+                          >
+                            ✓
+                          </button>
+                          <span className="min-w-0 flex-1">
                             <span
-                              className={`truncate font-medium ${
+                              className={`block truncate text-[15px] font-semibold ${
                                 arrived
-                                  ? active
-                                    ? "text-emerald-700"
+                                  ? inCourtIdx >= 0
+                                    ? "text-emerald-800"
                                     : "text-slate-700"
                                   : "text-slate-400 line-through"
                               }`}
                             >
                               {name}
                             </span>
-                            {!arrived && (
-                              <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
-                                ยังไม่มา
-                              </span>
-                            )}
-                            {active && (
-                              <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
-                                เล่นอยู่
-                              </span>
-                            )}
-                            {longest && (
-                              <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
-                                รอนานสุด
-                              </span>
-                            )}
+                            <span className="mt-0.5 flex flex-wrap items-center gap-1">
+                              {!arrived && (
+                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                                  ยังไม่มา
+                                </span>
+                              )}
+                              {inCourtIdx >= 0 &&
+                                (active ? (
+                                  <span className="rounded-full bg-lime-100 px-2 py-0.5 text-[10px] font-medium text-lime-700">
+                                    เล่นอยู่ · คอร์ด {inCourtIdx + 1}
+                                  </span>
+                                ) : (
+                                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                                    คอร์ด {inCourtIdx + 1}
+                                  </span>
+                                ))}
+                              {!active && longest && (
+                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                                  รอนานสุด
+                                </span>
+                              )}
+                            </span>
                           </span>
-<span className="flex items-center gap-2 text-sm text-slate-500 tabular-nums">
-                          <button
-                            onClick={() => removeMember(name)}
-                            aria-label={`ลบ ${name}`}
-                            className="rounded-full bg-slate-100 px-1.5 py-0.5 text-xs text-slate-400 transition-colors hover:bg-rose-100 hover:text-rose-600"
-                          >
-                            ✕
-                          </button>
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">
-                            {games} เกม
-                          </span>
+                          <span className="flex shrink-0 flex-col items-end gap-1 text-xs text-slate-500 tabular-nums">
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                              {games} เกม
+                            </span>
                             {active
-                              ? "—"
+                              ? ""
                               : waitMin > 0
                                 ? `รอ ${waitMin} นาที`
                                 : games > 0
-                                  ? "เพิ่งจบเกม"
-                                  : "ยังไม่ได้ลง"}
+                                  ? "เพิ่งจบ"
+                                  : "ยังไม่ลง"}
                           </span>
+                          <button
+                            onClick={() => {
+                              if (suppressClickRef.current) return;
+                              removeMember(name);
+                            }}
+                            aria-label={`ลบ ${name}`}
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs text-slate-400 transition-colors hover:bg-rose-100 hover:text-rose-600"
+                          >
+                            ✕
+                          </button>
                         </li>
                       );
                     })}
