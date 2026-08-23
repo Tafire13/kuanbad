@@ -235,19 +235,24 @@ export default function TournamentBoard() {
     return s;
   }, [app.courts]);
 
-  const standings = useMemo(
+  const teamStandings = useMemo(
     () =>
-      app.members
-        .map((n) => ({
-          name: n,
-          pts: app.scores?.[n] ?? 0,
-          games: playerGames(app, n),
-          wins: app.games.filter((g) => {
-            const inA = app.teams[g.t1]?.includes(n);
-            const inB = app.teams[g.t2]?.includes(n);
-            return inA ? g.sa > g.sb : inB ? g.sb > g.sa : false;
-          }).length,
+      app.teams
+        .map((team, t) => ({
+          t,
+          players: [...team],
+          pts: app.games.reduce((sum, g) => {
+            if (g.t1 !== t && g.t2 !== t) return sum;
+            const diff = Math.abs(g.sa - g.sb);
+            const won = g.t1 === t ? g.sa > g.sb : g.sb > g.sa;
+            return sum + (won ? diff : -diff);
+          }, 0),
+          games: teamGames(app, t),
+          wins: app.games.filter((g) =>
+            g.t1 === t ? g.sa > g.sb : g.t2 === t ? g.sb > g.sa : false
+          ).length,
         }))
+        .filter((x) => x.players.length === 2)
         .sort((x, y) => y.pts - x.pts || y.games - x.games),
     [app]
   );
@@ -984,18 +989,18 @@ export default function TournamentBoard() {
             );
           })}
 
-          {standings.length > 0 && (
+          {teamStandings.length > 0 && (
             <section className="rounded-2xl bg-white p-5 border border-slate-100 shadow-[0_4px_20px_rgba(16,185,129,0.08)] dark:bg-slate-800 dark:border-slate-700">
               <div className="mb-3 flex items-center gap-2">
                 <span className="h-4 w-1.5 rounded-full bg-gradient-to-b from-amber-500 to-amber-400" />
                 <h2 className="font-semibold text-slate-700 dark:text-slate-200">
-                  ตารางคะแนน
+                  ตารางคะแนน (ทีม)
                 </h2>
               </div>
               <ul className="sidebar-scroll space-y-1.5">
-                {standings.map((s, i) => (
+                {teamStandings.map((s, i) => (
                   <li
-                    key={s.name}
+                    key={s.t}
                     className={`flex items-center gap-2.5 rounded-xl border px-3 py-2 ${
                       i === 0
                         ? "border-amber-200 bg-amber-50/80 dark:border-amber-700/60 dark:bg-amber-950/40"
@@ -1011,11 +1016,13 @@ export default function TournamentBoard() {
                     >
                       {i + 1}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-700 dark:text-slate-200">
-                      {s.name}
-                    </span>
-                    <span className="text-[11px] text-slate-400 dark:text-slate-500">
-                      {s.games} เกม · {s.wins} ชนะ
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        ทีม {s.t + 1} · {s.players.join(" × ")}
+                      </span>
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500">
+                        {s.games} เกม · {s.wins} ชนะ
+                      </span>
                     </span>
                     <span
                       className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums ${
