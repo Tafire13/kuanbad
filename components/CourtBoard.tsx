@@ -1079,19 +1079,7 @@ useEffect(() => {
                       return (
                         <li
                           key={name}
-                          {...pressHandlers(
-                            name,
-                            inCourtIdx >= 0 ? inCourtIdx : null,
-                            inCourtIdx >= 0
-                              ? app.courts[inCourtIdx].status
-                              : undefined
-                          )}
-                          style={{ touchAction: "none" }}
-                          className={`group flex cursor-grab select-none items-center gap-2.5 rounded-xl border px-3 py-2.5 transition-all ${
-                            dragName === name
-                              ? "scale-[0.98] opacity-60 ring-2 ring-rose-400"
-                              : ""
-                          } ${
+                          className={`group flex select-none items-center gap-2.5 rounded-xl border px-3 py-2.5 transition-all ${
                             arrived
                               ? inCourtIdx >= 0
                                 ? "border-emerald-200 bg-emerald-50/70 hover:border-emerald-300 dark:border-emerald-800/70 dark:bg-emerald-950/40 dark:hover:border-emerald-700"
@@ -1536,7 +1524,7 @@ useEffect(() => {
                                 doSwap(idx, swapOut, n);
                               }}
                               {...pressHandlers(n, null)}
-                              style={{ touchAction: "none" }}
+                              style={{ touchAction: "pan-y" }}
                               className={`cursor-grab select-none rounded-lg bg-white px-3 py-2 text-sm font-semibold shadow-sm transition-all hover:bg-sky-50 dark:bg-slate-800 dark:hover:bg-slate-700 ${
                                 dragName === n
                                   ? "scale-105 opacity-60 ring-2 ring-rose-400"
