@@ -1443,26 +1443,58 @@ useEffect(() => {
                             ไม่มีคนว่างให้สลับ
                           </p>
                         ) : (
-                          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                            {freePlayers.map((n) => (
-                              <button
-                                key={n}
-                                onClick={() => {
-                                  if (suppressClickRef.current) return;
-                                  if (!swapOut) return;
-                                  doSwap(idx, swapOut, n);
-                                }}
-                                {...pressHandlers(n, null)}
-                                style={{ touchAction: "none" }}
-                                className={`cursor-grab select-none rounded-full bg-white px-4 py-1.5 text-sm font-semibold shadow-sm transition-all hover:-translate-y-0.5 hover:bg-sky-100 ${
-                                  dragName === n
-                                    ? "scale-110 opacity-60 ring-2 ring-rose-400"
-                                    : "text-sky-700"
-                                }`}
-                              >
-                                {n}
-                              </button>
-                            ))}
+                          <div className="mt-3 flex items-stretch gap-3">
+                            <div className="grid flex-1 content-start grid-cols-2 gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3">
+                              {freePlayers
+                                .slice(0, Math.ceil(freePlayers.length / 2))
+                                .map((n) => (
+                                  <button
+                                    key={n}
+                                    onClick={() => {
+                                      if (suppressClickRef.current) return;
+                                      if (!swapOut) return;
+                                      doSwap(idx, swapOut, n);
+                                    }}
+                                    {...pressHandlers(n, null)}
+                                    style={{ touchAction: "none" }}
+                                    className={`cursor-grab select-none rounded-xl bg-white px-3 py-2.5 text-sm font-bold shadow-sm transition-all hover:-translate-y-0.5 hover:bg-emerald-50 ${
+                                      dragName === n
+                                        ? "scale-110 opacity-60 ring-2 ring-rose-400"
+                                        : "text-emerald-800 ring-1 ring-emerald-200"
+                                    }`}
+                                  >
+                                    {n}
+                                  </button>
+                                ))}
+                            </div>
+                            <div className="flex items-center">
+                              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-rose-600 text-sm font-extrabold text-white shadow-md shadow-rose-500/30">
+                                VS
+                              </span>
+                            </div>
+                            <div className="grid flex-1 content-start grid-cols-2 gap-2 rounded-2xl border border-sky-200 bg-sky-50/60 p-3">
+                              {freePlayers
+                                .slice(Math.ceil(freePlayers.length / 2))
+                                .map((n) => (
+                                  <button
+                                    key={n}
+                                    onClick={() => {
+                                      if (suppressClickRef.current) return;
+                                      if (!swapOut) return;
+                                      doSwap(idx, swapOut, n);
+                                    }}
+                                    {...pressHandlers(n, null)}
+                                    style={{ touchAction: "none" }}
+                                    className={`cursor-grab select-none rounded-xl bg-white px-3 py-2.5 text-sm font-bold shadow-sm transition-all hover:-translate-y-0.5 hover:bg-sky-50 ${
+                                      dragName === n
+                                        ? "scale-110 opacity-60 ring-2 ring-rose-400"
+                                        : "text-sky-800 ring-1 ring-sky-200"
+                                    }`}
+                                  >
+                                    {n}
+                                  </button>
+                                ))}
+                            </div>
                           </div>
                         )}
                         <p className="mt-2 text-xs text-sky-600">
