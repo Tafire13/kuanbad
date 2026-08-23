@@ -1102,16 +1102,27 @@ useEffect(() => {
                             ✓
                           </button>
                           <span className="min-w-0 flex-1">
-                            <span
-                              className={`block truncate text-[15px] font-semibold ${
-                                arrived
-                                  ? inCourtIdx >= 0
-                                ? "text-emerald-800 dark:text-emerald-300"
-                                : "text-slate-700 dark:text-slate-200"
-                              : "text-slate-400 line-through dark:text-slate-500"
-                              }`}
-                            >
-                              {name}
+                            <span className="flex items-baseline gap-1.5">
+                              <span
+                                className={`min-w-0 truncate text-[15px] font-semibold ${
+                                  arrived
+                                    ? inCourtIdx >= 0
+                                      ? "text-emerald-800 dark:text-emerald-300"
+                                      : "text-slate-700 dark:text-slate-200"
+                                    : "text-slate-400 line-through dark:text-slate-500"
+                                }`}
+                              >
+                                {name}
+                              </span>
+                              <span className="shrink-0 text-xs font-normal text-slate-400 tabular-nums dark:text-slate-500">
+                                ({games} เกม)
+                                {!active &&
+                                  (waitMin > 0
+                                    ? ` (รอ ${waitMin} นาที)`
+                                    : games > 0
+                                      ? " (เพิ่งจบ)"
+                                      : " (ยังไม่ลง)")}
+                              </span>
                             </span>
                             <span className="mt-0.5 flex flex-wrap items-center gap-1">
                               {!arrived && (
@@ -1135,18 +1146,6 @@ useEffect(() => {
                                 </span>
                               )}
                             </span>
-                          </span>
-                          <span className="flex shrink-0 flex-col items-end gap-1 text-xs text-slate-500 tabular-nums dark:text-slate-400">
-                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                              {games} เกม
-                            </span>
-                            {active
-                              ? ""
-                              : waitMin > 0
-                                ? `รอ ${waitMin} นาที`
-                                : games > 0
-                                  ? "เพิ่งจบ"
-                                  : "ยังไม่ลง"}
                           </span>
                           <button
                             onClick={() => {
