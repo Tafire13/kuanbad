@@ -1,15 +1,16 @@
 @import "tailwindcss";
 
-:root {
-  --background: #f4f7f5;
-  --foreground: #171717;
+body {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #ecfdf5 0%, #f8fafc 45%, #f0fdfa 100%);
+  color: #1e293b;
+  font-family: var(--font-prompt), "IBM Plex Sans Thai", "Leelawadee UI",
+    "Noto Sans Thai", system-ui, sans-serif;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: "IBM Plex Sans Thai", "Leelawadee UI", "Noto Sans Thai",
-    system-ui, sans-serif;
+::selection {
+  background: #a7f3d0;
+  color: #065f46;
 }
 
 @keyframes slot-in {
@@ -29,3 +30,15 @@ body {
   animation: slot-in 0.09s ease-out;
 }
 
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: #a7f3d0;
+  border-radius: 9999px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
