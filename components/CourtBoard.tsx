@@ -6,10 +6,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 const DEFAULT_MEMBERS: string[] = [];
 
 const MAX_COURTS = 10;
-const POLL_MS = 1500;
 
 interface CourtBoardProps {
-  stateUrl?: string;
   storageKey?: string;
   title?: string;
   subtitle?: string;
@@ -197,14 +195,12 @@ function countTeamConflicts(
 }
 
 export default function CourtBoard({
-  stateUrl = "/api/state",
   storageKey = "kuanbad-app",
   title = "ก๊วน CS KhemKhang",
   subtitle,
 }: CourtBoardProps) {
   const persisted = loadLocal(storageKey ?? "kuanbad-app");
-const [app, setApp] = useState<AppState>(persisted ?? defaultState());
-  const [, setOnline] = useState(false);
+  const [app, setApp] = useState<AppState>(persisted ?? defaultState());
   const [now, setNow] = useState(() => Date.now());
   const [newName, setNewName] = useState("");
   const [shuffling, setShuffling] = useState<number[]>([]);
@@ -227,10 +223,6 @@ const [app, setApp] = useState<AppState>(persisted ?? defaultState());
     {}
   );
   const appRef = useRef(app);
-  const revRef = useRef<number | null>(null);
-  const pendingRef = useRef(false);
-  const bootedRef = useRef(false);
-  const pushChainRef = useRef<Promise<void>>(Promise.resolve());
   const dragRef = useRef<{ name: string; fromCourt: number | null } | null>(
     null
   );
@@ -250,78 +242,10 @@ const [app, setApp] = useState<AppState>(persisted ?? defaultState());
   };
 
   const commit = (updater: (prev: AppState) => AppState) => {
-    const next = updater(appRef.current);
-    setBoth(next);
-    pushChainRef.current = pushChainRef.current.then(async () => {
-      pendingRef.current = true;
-      try {
-        const res = await fetch(stateUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ state: next, baseRev: revRef.current }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          revRef.current = data.rev;
-          setOnline(true);
-        } else if (res.status === 409) {
-          const data = await res.json();
-          if (data.state) {
-            revRef.current = data.rev;
-            setBoth(normalizeState(data.state));
-          }
-          setOnline(true);
-        } else {
-          setOnline(false);
-        }
-      } catch {
-        setOnline(false);
-      } finally {
-        pendingRef.current = false;
-      }
-    });
+    setBoth(updater(appRef.current));
   };
 
   useEffect(() => {
-    let cancelled = false;
-    const tick = async () => {
-      try {
-        const res = await fetch(stateUrl);
-        if (!res.ok) {
-          setOnline(false);
-          return;
-        }
-        const data = await res.json();
-        if (cancelled) return;
-        setOnline(true);
-        if (!bootedRef.current) {
-          bootedRef.current = true;
-          if (data.state) {
-            revRef.current = data.rev;
-            setBoth(normalizeState(data.state));
-          }
-          setOnline(true);
-        } else if (
-          !pendingRef.current &&
-          data.state &&
-          data.rev !== revRef.current
-        ) {
-          revRef.current = data.rev;
-          setBoth(normalizeState(data.state));
-        }
-      } catch {
-        setOnline(false);
-      }
-    };
-    void tick();
-    const id = setInterval(() => void tick(), POLL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, []);
-
-useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
