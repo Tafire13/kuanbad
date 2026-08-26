@@ -9,6 +9,7 @@ const MAX_COURTS = 10;
 
 interface CourtBoardProps {
   storageKey?: string;
+  stateUrl?: string;
   title?: string;
   subtitle?: string;
 }
@@ -196,6 +197,7 @@ function countTeamConflicts(
 
 export default function CourtBoard({
   storageKey = "kuanbad-app",
+  stateUrl,
   title = "ก๊วน CS KhemKhang",
   subtitle,
 }: CourtBoardProps) {
@@ -203,6 +205,8 @@ export default function CourtBoard({
   const [app, setApp] = useState<AppState>(persisted ?? defaultState());
   const [now, setNow] = useState(() => Date.now());
   const [newName, setNewName] = useState("");
+  const [bulkText, setBulkText] = useState("");
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [shuffling, setShuffling] = useState<number[]>([]);
   const [rollNames, setRollNames] = useState<Record<number, string[]>>({});
   const [rollTick, setRollTick] = useState(0);
@@ -223,6 +227,10 @@ export default function CourtBoard({
     {}
   );
   const appRef = useRef(app);
+  const revRef = useRef<number | null>(null);
+  const pendingRef = useRef(false);
+  const bootedRef = useRef(false);
+  const pushChainRef = useRef<Promise<void>>(Promise.resolve());
   const dragRef = useRef<{ name: string; fromCourt: number | null } | null>(
     null
   );
@@ -242,8 +250,81 @@ export default function CourtBoard({
   };
 
   const commit = (updater: (prev: AppState) => AppState) => {
-    setBoth(updater(appRef.current));
+    const next = updater(appRef.current);
+    setBoth(next);
+    if (!stateUrl) return;
+    pushChainRef.current = pushChainRef.current.then(async () => {
+      pendingRef.current = true;
+      try {
+        const res = await fetch(stateUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ state: next, baseRev: revRef.current }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          revRef.current = data.rev;
+        } else if (res.status === 409) {
+          const data = await res.json();
+          if (data.state) {
+            revRef.current = data.rev;
+            setBoth(normalizeState(data.state));
+          }
+        }
+      } catch {
+        /* keep local */
+      } finally {
+        pendingRef.current = false;
+      }
+    });
   };
+
+  useEffect(() => {
+    if (!stateUrl) return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const res = await fetch(stateUrl);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        if (!bootedRef.current) {
+          bootedRef.current = true;
+          if (data.state) {
+            revRef.current = data.rev;
+            setBoth(normalizeState(data.state));
+            return;
+          }
+          if (appRef.current.members.length > 0) {
+            revRef.current = null;
+            await fetch(stateUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                state: appRef.current,
+                baseRev: null,
+              }),
+            });
+          }
+        } else if (
+          !pendingRef.current &&
+          data.state &&
+          data.rev !== revRef.current
+        ) {
+          revRef.current = data.rev;
+          setBoth(normalizeState(data.state));
+        }
+      } catch {
+        /* offline */
+      }
+    };
+    void tick();
+    const id = setInterval(() => void tick(), 1500);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [stateUrl]);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -332,6 +413,38 @@ export default function CourtBoard({
       members: [...prev.members, name],
       presence: { ...(prev.presence ?? {}), [name]: false },
     }));
+  };
+
+  const bulkAdd = () => {
+    const names = bulkText
+      .split(/\r?\n|,/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (names.length === 0) return;
+    const hadDupe = names.length > new Set(names).size;
+    commit((prev) => {
+      const seen = new Set(prev.members);
+      const toAdd: string[] = [];
+      names.forEach((n) => {
+        if (!seen.has(n)) {
+          seen.add(n);
+          toAdd.push(n);
+        }
+      });
+      if (toAdd.length === 0) {
+        alert("ไม่มีชื่อใหม่ — ซ้ำทั้งหมดแล้ว");
+        return prev;
+      }
+      const presence = { ...(prev.presence ?? {}) };
+      toAdd.forEach((n) => {
+        presence[n] = false;
+      });
+      return { ...prev, members: [...prev.members, ...toAdd], presence };
+    });
+    if (hadDupe) {
+      alert("มีชื่อซ้ำถูกข้ามให้อัตโนมัติ");
+    }
+    setBulkText("");
   };
 
   const togglePresence = (name: string) =>
@@ -1122,6 +1235,39 @@ export default function CourtBoard({
                 >
                   เพิ่ม
                 </button>
+              </div>
+              <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-700">
+                <button
+                  onClick={() => setBulkOpen((v) => !v)}
+                  className="text-xs font-semibold text-emerald-600 transition-colors hover:text-emerald-700 dark:text-emerald-400"
+                >
+                  {bulkOpen ? "▴ ปิด" : "▾ เพิ่มหลายชื่อทีเดียว (paste ทั้งก๊วน)"}
+                </button>
+                {bulkOpen && (
+                  <div className="mt-2 space-y-2">
+                    <textarea
+                      value={bulkText}
+                      onChange={(e) => setBulkText(e.target.value)}
+                      rows={7}
+                      placeholder={"ใส่ 1 บรรทัดต่อชื่อ (คั่นจุลภาคก็ได้)\nปั๊ม\nกั๋น\nไพน์"}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+                    />
+                    <button
+                      onClick={bulkAdd}
+                      className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-600/25 transition-all hover:-translate-y-0.5 hover:bg-emerald-700"
+                    >
+                      เพิ่มทั้งหมด (
+                      {bulkText
+                        .split(/\r?\n|,/)
+                        .map((s) => s.trim())
+                        .filter(Boolean).length}{" "}
+                      ชื่อ)
+                    </button>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                      ชื่อซ้ำจะข้ามให้อัตโนมัติ — คนที่เพิ่มมายังไม่เช็คชื่อ ✓
+                    </p>
+                  </div>
+                )}
               </div>
             </section>
           </div>

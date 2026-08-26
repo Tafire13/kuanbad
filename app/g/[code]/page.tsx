@@ -56,8 +56,9 @@ export default function GroupPage() {
       {name ? (
         <CourtBoard
           storageKey={`kuanbad-group-${code}`}
+          stateUrl={`/api/groups/${code}/state`}
           title={name}
-          subtitle={`ก๊วนนี้ไม่ sync เซิร์ฟเวอร์ — ข้อมูลอยู่เครื่องที่เปิดหน้านี้เท่านั้น`}
+          subtitle={`ก๊วนนี้ sync กันเฉพาะเครื่องที่ถือลิงก์ — รหัส ${code}`}
         />
       ) : (
         <div className="flex min-h-screen items-center justify-center">
